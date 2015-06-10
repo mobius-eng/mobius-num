@@ -6,3 +6,7 @@
 *.asd~
 *.dx64fsl
 *.dx32fsl
+*.pyg
+*.pdf
+*.html
+*.tex

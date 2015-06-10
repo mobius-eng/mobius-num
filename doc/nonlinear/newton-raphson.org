@@ -1,0 +1,191 @@
+#+TITLE: Implementation of multidimensional Newton-Raphson algorithm
+#+AUTHOR: Alexey Cherkaev (m\"obius-eng)
+
+* Algorithm basics
+
+Newton-Raphson method solves the set of equations
+\[
+\boldsymbol{F}(\boldsymbol{x})=0
+\]
+where $\boldsymbol{x}\in\mathbb{R}^{n}$ and
+$\boldsymbol{F}:\mathbb{R}^{n}\to\mathbb{R}^{n}$. The method approximates
+non-linear function $\boldsymbol{F}$ as a linear function, using its
+Jacobian: $\partial\boldsymbol{F}(\boldsymbol{x}) : \mathbb{R}^n \to \mathbb{R}^{n}$ (linear).
+Next approximation is calculated as following:
+\[
+\boldsymbol{x}_{\text{new}} =\boldsymbol{x}_{\text{old}} -\boldsymbol{p}
+\]
+where
+\[
+\boldsymbol{p} = -
+\left[\partial\boldsymbol{F}(\boldsymbol{x}_{\text{old}}_{} )\right]^{-1}\cdot\boldsymbol{F}(\boldsymbol{x}_{}_{\text{old}})
+\]
+
+* Globally convergent Newton-Raphson algorithm using backtracking
+
+While this method has a quadratic convergence it might fail if
+function $\boldsymbol{F}$ has some irregularities. Thus,
+Newton-Raphson method has a small basin of convergence.
+
+The basin of convergence can be extended using the following
+principle: advance from $\boldsymbol{x}_{\text{old}}$ in the direction of
+$\boldsymbol{p}$ but take the full step $\boldsymbol{x}_{\text{new}} =
+\boldsymbol{x}_{\text{old}} + \boldsymbol{p}$ iff it makes the value of
+$\boldsymbol{F}$ smaller. More presicely, define
+\[
+f(\boldsymbol{x}) = \frac{1}{2} \boldsymbol{F}^{T}\cdot\boldsymbol{F}
+\]
+and advance in the portion of the direction $\boldsymbol{p}$,
+$\lambda\boldsymbol{p}$ with $0<\lambda\leq1$ such that
+\[
+f(\boldsymbol{x}_{\text{old}} +\lambda\boldsymbol{p}) \leq
+f(\boldsymbol{x}_{\text{old}}) + \alpha \nabla f(\boldsymbol{x}_{\text{old}}) \cdot \lambda\boldsymbol{p}
+\]
+where $\nabla f (\boldsymbol{x}) = \boldsymbol{F}^{T}(\boldsymbol{x}) \cdot
+\partial\boldsymbol{F}(\boldsymbol{x})$. Thus
+\[
+\nabla f(\boldsymbol{x}_{\text{old}}) \cdot\boldsymbol{p} = \boldsymbol{F}^{T}(\boldsymbol{x}_{\text{old}}) \cdot
+\partial\boldsymbol{F}(\boldsymbol{x}_{\text{old}}) \cdot \left(-
+\left[\partial\boldsymbol{F}(\boldsymbol{x}_{\text{old}}_{}
+)\right]^{-1}\cdot\boldsymbol{F}(\boldsymbol{x}_{}_{\text{old}}) \right)
+\]
+\[
+\nabla f(\boldsymbol{x}_{\text{old}}) \cdot\boldsymbol{p} = -
+\boldsymbol{F}^{T}(\boldsymbol{x}_{\text{old}}) \cdot
+\boldsymbol{F}(\boldsymbol{x}_{\text{old}}) = -2f(\boldsymbol{x}_{\text{old}})
+\]
+And the condition is therefore
+\[
+f(\boldsymbol{x}_{\text{old}} +\lambda\boldsymbol{p}) \leq
+f(\boldsymbol{x}_{\text{old}}) -2\alpha\lambda f(\boldsymbol{x}_{\text{old}}) =
+(1-2\alpha\lambda)f(\boldsymbol{x}_{\text{old}})
+\]
+Good choice of $\alpha=10^{-4}$.
+
+We can define
+\[
+g(\lambda)=f(\boldsymbol{x}_{\text{old}}+\lambda\boldsymbol{p})
+\]
+It follows
+\[
+D[g](\lambda)=\nabla f \cdot \boldsymbol{p}
+\]
+and
+\[
+D[g](0) = -2f(\boldsymbol{x}_{\text{old}})
+\]
+
+We are trying to find such $\lambda$ that will minimize $g(\lambda)$. Initially we
+know $g(0)=f(\boldsymbol{x}_{\text{old}})$ and $D[g](0)$. Advancing the
+full step with $\lambda=1$, brings $g(1)$. If $\lambda=1$ does not satisfy the
+minimisation condition, $g(\lambda)$ can be modelled as a quadratic
+function with the minimum found at the point
+\[
+\lambda = -\frac{D[g](0)}{2(g(1)-g(0)-D[g](0))}
+\]
+Subsequently, the values at the last two $\lambda_{1}$ and $\lambda_{2}$ (last and the
+second last) are used to approximate
+$g(\lambda)$. This way, it is approximated as a cubic function of $\lambda$ with
+the minimum found at
+\[
+\lambda = \frac{-b+\sqrt{b^{2}-3aD[g](0)}}{3a}
+\]
+where $a$ and $b$ are found using the following formula:
+\[
+\left[\begin{array}{c}a\\b\end{array}\right] = 
+\frac{1}{\lambda_1-\lambda_2}
+\left[\begin{array}{cc} 1/\lambda_1^2 & -1/\lambda_2^2 \\ -\lambda_2/\lambda_1^2 &
+\lambda_1/\lambda_2^2 \end{array}\right]
+\cdot
+\left[\begin{array}{c} g(\lambda_{}_{1}) -D[g](0)\lambda_{1} - g(0)\\
+g(\lambda_{2})-D[g](0)\lambda_{2}-g(0)\end{array}\right]
+\]
+To avoid too small values of $\lambda$, it is enforced to lie between
+$0.1\lambda_{1}$ and $0.5\lambda_{1}$.
+
+* Program
+
+Function ~NEXT-LAMBDA~ computes next $\lambda$ that minimises $g(\lambda)$ given
+$g(0)$, $D[g](0)$, $\lambda_{1}$, $\lambda_{2}$, $g(\lambda_{1})$ and $g(\lambda_{2})$.
+
+Function ~NEWTON-METHOD~ implements globally convergent Newton-Raphson
+algorithm with backtracking. This implementation is optimised for
+execution time and memory usage: all potentially vector functions are
+required to have an extra argument, a 'buffer'. Here is the
+description of portions of this function.
+
+** Arguments
+
+- ~CRITERIA~ is a criteria-object that controls iterations (through
+  ~ITERATOR~-object). ~CRITERIA~ must operate on the list of ~(F X)~
+  values. See package ~CRITERIA~ for more information.
+- ~LIN-SOLVER~ is a function that solves linear equation $Ax=b$. It
+  takes linear operator $A$, RHS-vector $b$, initial approximation
+  $x0$ and the buffer to store the result (which is returned as a
+  result of the function).
+- ~F~ is a function $\boldsymbol{F}(\boldsymbol{x})$. It takes two
+  arguments: value of $\boldsymbol{x}$ and the place to keep the
+  result.
+- ~DF~ is a Jacobian $\partial\boldsymbol{F}(\boldsymbol{x})$: a function
+  that takes an argument $\boldsymbol{x}$ and returns a linear
+  operator (inversable by ~LIN-SOLVER~). For optimisation reasons, it
+  takes one extra argument, the space to keep the linear operator at a
+  particular $\boldsymbol{x}$. Notice, that it does not allways make
+  sense to use it. For example, if it returns a function (closure),
+  instead of a matrix.
+- ~DF-TMP~ is a space that will keep the linear operator as a result
+  of application ~(DF X DF-TMP)~.
+
+** General approach
+
+~NEWTON-METHOD~ uses ~FIXED-POINT~ method to run the iterations on
+both $\boldsymbol{x}$ and $\lambda$. Thus,
+most of the function body consists of preparing relevant functions and
+convergence criteria to start each process. The main iteration cylce
+(over $\boldsymbol{x}$) is represented by the interal function
+~IMPROVE~. In short, ~IMPROVE~ maps current values ~(F0 X0)~ to new
+ones ~(F X)~ by performing Newton step with backtracking. Internal
+function ~IMPROVE-L~ provides the update of $\lambda$ using ~NEXT-LAMBDA~.
+
+** Buffers
+
+To avoid memory allocation and deallocation while the method runs, a
+number of buffers are declared:
+- ~P-BUFFER~ keeps $\boldsymbol{p}$ (does not escape outside of iteration)
+- ~F0-BUFFER~ keeps the value of
+  $\boldsymbol{F}(\boldsymbol{x}_{\text{old}})$ at each iteration (does
+  not escape outside of iteration)
+- ~F-FULL-BUFFER~ keeps
+  $\boldsymbol{F}(\boldsymbol{x}_{\text{old}}+\boldsymbol{p})$ at each
+  iteration (does not escape outside of iteration)
+- ~MISC-BUFFER~ keeps some shortlived intermmediate values within the
+  expressions, it does not escape the expression
+- ~FL1-BUFFER~ keeps the value of
+  $\boldsymbol{F}(\boldsymbol{x}_{\text{old}}+\lambda_{1}\boldsymbol{p})$
+  (does not escape the iteration of $\lambda$)
+- ~L-ITER-BUFFER1~ and ~L-ITER-BUFFER2~ are used in the process of
+  finding suitable $\lambda$ to keep the value
+  $\boldsymbol{F}(\boldsymbol{x}_{\text{old}}+\lambda_{1}\boldsymbol{p})$
+  between the iterations (required by ~FIXED-POINT~)
+- ~MAIN-BUFFER1~ and ~MAIN-BUFFER2~ keep the last two approximations
+  and function values (required by ~FIXED-POINT~).
+
+** Internal functions
+
+Internal function ~FULL-NEWTON-STEP~ finds $\boldsymbol{p}$ with given
+~F-VALUE~ and ~DF-VALUE~. It returns the result, but uses ~DEST~
+argument as a buffer.
+
+Function ~ABS-F~ is the implementation on $f(\boldsymbol{x})$. Since
+it needs to evaluate $\boldsymbol{F}$, it also returns its as a
+secondary value.
+
+~L-FINISH-CRITERIA~ is used to control the iterations on $\lambda$.
+
+Function ~G~ implements $g(\lambda)$: it calls ~ABS-F~ and, thus, returns
+$\boldsymbol{F}(\boldsymbol{x}_{\text{old}}+\lambda\boldsymbol{p})$ as a
+secondary value.
+
+Functions ~IMPROVE~ and ~IMPROVE-L~ are main vehicles of iterations
+and were discussed in [[General%20approach][General approach]].
+

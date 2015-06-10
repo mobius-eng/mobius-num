@@ -1,0 +1,339 @@
+#+TITLE: Generalised Crank-Nicolson method
+
+* Simple Crank-Nicolson method to solve ODE
+ODE in question is
+\[
+M\cdot\frac{du}{dt} = S\cdot u + f(u)
+\]
+where $M$ and $S$ are mass and stiffness (linear) operators
+respectively.
+
+Crank-Nicolson (CN)discretization:
+\[
+\left(\frac{1}{\Delta t}M-\frac{1}{2}S\right)u^{n+1}=
+\left(\frac{1}{\Delta t}M+\frac{1}{2}S\right) u^n +\frac{1}{2}(f^n+f^{n+1})
+\]
+
+is locally $O\left(\Delta t^3\right)$ method and is A-stable (but not
+L-stable). Higher degree of accuracy puts it ahead of backward Euler
+(BE) method, which has a similar complexity. As with BE, CN requires
+the solution of the set of nonlinear equations. Assuming that operator
+$\left(\frac{1}{\Delta t}M-\frac{1}{2}S\right)$ has /contraction/
+properties, these equations can be simply solved by iterations:
+
+\[
+u^{n+1,k+1} = \left(\frac{1}{\Delta t}M-\frac{1}{2}S\right)^{-1}
+\left(\left(\frac{1}{\Delta t}M+\frac{1}{2}S\right) u^n
++\frac{1}{2}(f^n+f^{n+1, k})\right)
+\]
+
+starting from $u^{n+1,0} = u^n$.
+
+* Generilised CN method
+
+CN is usually formulated for $u$ being a vector and $M$ and $S$ being
+matrices. Thus, they are implemented as arrays. In practice, however,
+it might be advantageous to think of $u$, $M$ and $S$ as more
+generalised vectors and operators: in the simplest case they can be
+just numbers, or in more complicated problems they can be tensors of
+rank two and four, or vector $u$ can be a set of vectors and each $M$
+and $S$ can be sets of matrices. The notion of /value/ and /operator/
+generalises this concept.
+
+/Value/ is an element of a simple vector space with the following
+operations defined on it:
+- '+' and '-' producing new values
+- multiplication by a scalar factor (number)
+- existence of /zero/ is guaranteed.
+
+/Operator/ is also an element of a vector space (albiet different one)
+with operations:
+- '+', '-' and scale as for values
+- application to a value producing another value.
+
+/Zero operator/ then can be defined as one that produces zero-value
+for any value argument.
+
+The notion of value and operator is implemented in Common Lisp using
+multimethods. Simple dispatches are implemented for numbers and
+vector-matrices cases. Note, that operator for value = vector does not
+have to be a matrix, but rather a linear function.
+
+CN method formulated in the previous section requires very few
+properties from $u$, $M$ and $S$. Generic values and operators cover
+all of them, except for existence of the inverse operator $A^{-1}$. A
+particular implementation of this operator must be provided by an
+implementation. For numbers it is simply $1/A$ for $A\neq0$, for
+vectors and matrices it would be a result of solution of linear
+equations.
+
+* Error estimation in CN method
+
+Following "Numerical Recipes" example for Runge-Kutta method, the
+error estimate for Crank-Nicolson is derive as follows:
+
+- Do CN step for $\Delta t$. Calculate $f^{n+1}$.
+- Use square interpolation to estimate $\hat u^{n+1/2}$, i.e. $u(t_n+\Delta
+  t/2)$.
+- Calculate $\hat f^{n+1/2}$ using estimated $\hat u^{n+1/2}$.
+- Use $\hat f^{n+1/2}$ to calculate an improved estimate $u^{n+1/2}$.
+- Use the improved $u^{n+1/2}$, to improve the estimate $f^{n+1/2}$.
+- Use $u^{n+1/2}$, $f^{n+1/2}$ and $f^{n+1}$ from the first step to
+  calculate the estimate $\hat u^{n+1}$.
+
+The estimate $\hat u^{n+1}$ is the value of $u(t+\Delta t)$ computed
+using two half-steps of $\Delta t/2$ each (strictly speaking, it is an
+estimate, since we avoided solving nonlinear equation by estimating
+and correcting the values just once, instead of looping for
+convergence as in main CN step). We can calculate the difference
+between the two values:
+\[
+E = \| u^{n+1} - \hat u^{n+1} \|
+\]
+
+The full error:
+
+\[
+\varepsilon = \|u^{n+1} - u(t+\Delta t)\|
+\]
+
+Since CN produces second-order approximation the error is $O(\Delta t
+^3)$. Thus, each half step will result in $(1/2)^3=1/8$ fraction of
+the full step error. In worst case scenario these errors add up and
+the full error for the estimate is:
+
+\[
+ \|\hat u^{n+1}-u(t+\Delta t)\| = \frac{\varepsilon}{4}
+\]
+
+Therefore,
+
+\[
+E = \| u^{n+1} - \hat u^{n+1} + u(t+\Delta t) - u(t+\Delta t)\|\geq
+\|u^{n+1} - u(t+\Delta t) \| - \|\hat u^{n+1} - u(t+\Delta t)\|=
+\varepsilon - \frac{\varepsilon}{4} = \frac{3\varepsilon}{4}
+\]
+
+Thus,
+
+\[
+\varepsilon \leq \frac{4}{3}E
+\]
+
+If the desired error is not achieved on the step $\delta t$,
+3rd-accuracy provides the mechanism to adjust the step to achieve this
+level:
+
+\[
+\frac{\Delta t_0}{\Delta t}=
+\left(\frac{\varepsilon_0}{\varepsilon}\right)^{1/3}
+\]
+
+where $\varepsilon_0$ is a disared error. And therefore, a new time-step
+must be chosen as
+
+\[
+\Delta t_0 =\Delta t\left(\frac{\varepsilon_0}{\varepsilon}\right)^{1/3}
+\]
+
+Since this method avoids a proper way of finding $u^{n+1/2}$ and more
+refined estimate $\hat u^{n+1}$, it is expected that the error
+estimate by this method will not be quite correct. Indeed, the
+experimentation with different nonlinear $f(u)$ showed that this
+method /underestimates/ the error $\varepsilon$. To overcome this
+issue, it is proposed to use a factor of $1.2 -- 1.5$ to correct the
+underestimation. 
+
+* Second order approximation of CN solution
+Between points $t$ and $\Delta t$ with values of $u(t)$ being $u^n$
+and $u^{n+1}$, the value of $u$ can be approximated using 2-nd order
+polynomial:
+
+\[
+u(\tau) = a\tau^2 +b\tau + c +O(\tau^3)
+\]
+
+where $0<\tau<\Delta t$. This polynomial sastifies the following
+criteria:
+
+\begin{align*}
+u(\tau=0) &= u^n\\
+u(\tau=\Delta t) &= u^{n+1}\\
+\left.\frac{du}{dt}\right|_{\tau=0} &= M^{-1}(Su^n + f^n)
+\end{align*}
+
+Thus, $c = u^n$, $b = M^{-1}(Su^n+f^n)$, and
+$a = \left(u^{n+1}-b\Delta t - c \right) / \Delta t^2$.
+It can be shown that the first derivative
+of the polynomial at $\tau=\Delta t$ also satisfies
+$M^{-1}(Su^{n+1}+f^{n+1})$ (it is easier to show it in a general case
+$\dot{u} = \varphi(u)$).
+
+This approximation helps to find initial estimate of $u^{n+1/2}$ for
+method error control.
+
+* Generalized algebraic equation solver
+
+Algebraic equation
+
+\[
+Au = b + f(u)
+\]
+
+where $u$ and $b$ are values, $A$ is an operator and $f(u)$ is a
+function from value to value can be solved using fixed-point method:
+
+\[
+u^{n+1} = A^{-1}\left(b+f(u^n)\right)
+\]
+
+starting from some initial guess $u^0$. For the method to succeed, of
+course, RHS must be a contraction mapping, which highly depend on the
+nature of function $f(u)$ and operator $A$. It is left to the users of
+the solver procedure to verify this property.
+
+* Implementation
+
+** Values and operators
+
+Values and operators are implemented using /multimethods/ (part of
+CLOS). The following generic methods are defined:
+
+- Values: =VALUE+=, =VALUE-=, =VALUE-SCALE=, =VALUE-ZERO=.
+- Operators: =OPERATOR+=, =OPERATOR-=, =OPERATOR-SCALE= and
+  =OPERATOR-APPLY=.
+
+Implimentations are provided for numbers and values = vectors and
+operators = matrices.
+
+** Algebraic equation solver
+
+Procedure =FIXED-POINT= provides an implementation of the finding a
+fixed point of a contraction mapping. Its arguments: function
+(contraction mapping), initial guess, and the test if the computation
+reached the convergence (function of two value arguments returning a
+boolean value).
+
+Equation $Au=b+f(u)$ is represented using class =EQUATION=. Function
+=MAKE-EQUATION= provides a simple constructor for it. The slots
+(fields) of the class are:
+
+- =LINOP= is $A$
+- =CONST= is $b$
+- =FUN= is $f(u)$
+- =LIN-SOLVER= is a function to solve linear equation $Cx=h$ accepting
+  operator $C$, RHS value $h$ and initial guess of $x$ (in case it is
+  an iterative solver).
+
+Function =CONTRACTION-MAPPING= returns contraction mapping of the
+equation:
+
+\[
+F(u) = A^{-1}(b+f(u))
+\]
+
+In addition, it accepts the a plist of /guards/ to control certain
+aspects of fixed-point computation (see below).
+
+Class =SOLUTION= helps to keep track of how many computations were
+performed in fixed-point procedure to prevent inifinite loop if
+convergence cannot be achieved.
+
+** Guards
+
+Guards help to control the solution in fixed-point procedure:
+
+- Guards can check if the solution satisfies a predefined criteria
+  (for example, being positive) - =CRITERIA-GUARD=.
+- Guards can limit the number of iterations of fixed-point to avoid
+  inifinite loop - =COUNT-GUARD=.
+
+Guards are defined using macro =DEFINE-GUARD=. General syntax is:
+
+#+BEGIN_SRC lisp exports :code
+  (define-guard <guard-name> (<guard-arg>*)
+    :documentation <information about the guard>
+    :condition (<condition-name> <condition-slot>*)
+    :criteria <function of equation variable>
+    :fail-with-args <which arguments are available to error>
+    :report <function of condition and stream printing error message>
+    :restarts (<restart-description>*))
+#+END_SRC
+
+Each guard defines:
+
+- Function named =<GUARD-NAME>= taking =<GUARD-ARGS>=.
+- Condition (derived from =ERROR= class) =<CONDITION-NAME>= with
+  =<CONDITION-SLOTS>= and readers =<CONDITION-NAME>-<SLOT>=. If
+  =:REPORT= clause is provided, it is added to condition definition.
+- The list of restarts for the condition.
+
+=:CRITERIA= clause defines the test, that indicates whether the guard
+raises the condition (it acts closesly to =ASSERT= statement in many
+languages). The test is defined as a function of the equation
+variable, resulting in TRUE (test passed) or FALSE (failed).
+
+=:FAIL-WITH-ARGS= clause provides the list of arg to be passed to
+condition. The length must match the number of slots of the condition.
+=:X= is used in place of the equation variable.
+
+=:RESTARTS= clause defines the list of available restarts. Each
+restart is defined as
+
+#+BEGIN_SRC lisp :exports code
+  (<restart-name> (<arg>*)
+                  :interactive <function>
+                  :new-x <expr for new equation varibale>
+                  :new-guard <expr for new guard)
+#+END_SRC
+
+All clauses are optional. If no clauses are provided, the computation
+will resume as if the current guard is not present.
+
+=:INTERACTIVE= clause acts the same as for standard restart
+declaration: the argument must be a function of no arguments returning
+the values of restart arguments.
+
+=:NEW-X= provides replacement of the current equation approximation.
+=:NEW-GUARD= is a replacement of the current guard.
+
+** Crank-Nicolson method
+
+Equation $M\dot u = Su+ f(t,u)$ is stored in =ODE= class. Function
+=MAKE-ODE= provides a shortcut to its constructor. Reader functions
+=ODE-MASS=, =ODE-STIFFNESS=, and =ODE-FUN= give access to the parts of
+the equation.
+
+Class =CRANK-NICOLSON= stores the values necessary for one step
+advance:
+- =U-N= is $u(t_n)$: value of $u$ at previous time step (reader
+  =CN-U-N=).
+- =F-N= is $f(t_n,u_n)$: value of nonlinear function at previous time
+  step (reader =CN-F-N=).
+- =T-N= previos time (reader =CN-T-N=).
+- =DT= is the time increment to the next time step (reader =CN-DT=).
+
+Function =CRANK-NICOLSON= provides the access to Crank-Nicolson
+method:
+
+#+BEGIN_SRC lisp :exports code
+  (crank-nicolson ode time-start time-end init-value output-time solver err-fun tolerance)
+#+END_SRC
+
+- =ODE= is =ODE= class object (equation).
+- =TIME-START= and =TIME-END= define the time boundaries of
+  simulation.
+- =INIT-VALUE= is initial value of $u(t=0)$ to setup Cauchy problem
+  for ODE.
+- =OUTPUT-TIME= is the list of times at which the result should be
+  recorded. It must not include initial time!
+- =SOLVER= is a general solver of the equation $Au=b+f(u)$, accepting
+  operator $A$, constant value $b$, value-to-value function
+  $f(\cdot)$, and initial guess $u_0$.
+- =ERR-FUN= is the topology function on values, taking two values and
+  returning the number (real) that defines the distance between two
+  values.
+- =TOLERANCE= defines how close the approximation needs to be to
+  actual solution on each step. WARNING: since it's a local tolerance,
+  the accumulated error on previous time steps can put the current
+  approximation further away from the actual solution.
