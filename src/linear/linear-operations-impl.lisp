@@ -137,7 +137,8 @@
            (operate-on-arrays #',primitive-op ,u ,u ,v)
            ,u)
          (defmethod ,dest-op ((,w array) (,u array) (,v array))
-           (operate-on-arrays #',primitive-op ,w ,u ,v))
+           (operate-on-arrays #',primitive-op ,w ,u ,v)
+           ,w)
          (defmethod ,pure-op ((,u array) (,v number))
            (let ((,w (make-array (array-dimensions ,u)
                                  :element-type (array-element-type ,u))))
@@ -149,9 +150,11 @@
              (operate-on-arrays #f(,primitive-op % ,u) ,w ,v)
              ,w))
          (defmethod ,assign-op ((,u array) (,v number))
-           (operate-on-arrays #f(,primitive-op % ,v) ,u ,u))
+           (operate-on-arrays #f(,primitive-op % ,v) ,u ,u)
+           ,u)
          (defmethod ,dest-op ((,w array) (,u array) (,v number))
-           (operate-on-arrays #f(,primitive-op % ,v) ,w ,u))))))
+           (operate-on-arrays #f(,primitive-op % ,v) ,w ,u)
+           ,w)))))
 
 (define-array-methods-elt +)
 (define-array-methods-elt -)
@@ -159,10 +162,12 @@
 (define-array-methods-elt /)
 
 (defmethod elt=-rev/! ((u array) (v array))
-  (operate-on-arrays (lambda (eu ev) (/ ev eu)) u u v))
+  (operate-on-arrays (lambda (eu ev) (/ ev eu)) u u v)
+  u)
 
 (defmethod elt=-rev/! ((u array) (v number))
-  (operate-on-arrays #f(/ v %) u u))
+  (operate-on-arrays #f(/ v %) u u)
+  u)
 
 ;; *** Structured multiplications
 ;; for vectors (simpler implementation)

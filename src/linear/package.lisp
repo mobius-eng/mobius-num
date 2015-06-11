@@ -20,7 +20,8 @@
            #:e- #:e=-! #:e-!
            #:e* #:e=*! #:e*!
            #:e/ #:e=/! #:e/!
-           #:e-rev/ #:e=-rev/! #:e-rev/!)
+           #:e-rev/ #:e=-rev/! #:e-rev/!
+           #:outer-product)
   (:documentation "Definitions of generic linear operations"))
 
 (defpackage #:mobius-num.linear-operations-impl
@@ -75,4 +76,7 @@
 
 (defpackage #:mobius-num.bicg-stab
   (:use #:cl #:linop #:mobius-num.fixed-point)
-  (:import-from #:alexandria #:with-gensyms))
+  (:import-from #:alexandria #:with-gensyms)
+  (:export #:*bicgstab-tolerance*
+           #:*bicgstab-max-iterations*
+           #:bicgstab))

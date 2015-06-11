@@ -337,6 +337,16 @@ ELTx! for (MVECTOR MVECTOR MVECTOR) (MVECTOR MVECTOR NUMBER) (MVECTOR NUMBER MVE
                (error 'incompatible-mvector-size
                       :message (format nil "MM: vectors have incompatible index types"))))))
 
+(defmethod m* ((u array) (v mvector) &optional destination)
+  (cond ((and (down? v) (vectorp u)) (outer-product u (mvector-datum v) destination))
+        ((and (vectorp u) (up? v)) (dot u (mvector-datum v)))
+        ((= (array-rank u) 2)
+         (let ((dest (or destination (elt-zero v))))
+           (setf (mvector-datum dest)
+                 (m* u (mvector-datum v) (mvector-datum dest)))
+           dest))
+        (t (m* u (mvector-datum v) destination))))
+
 (defmethod mm ((u mvector) (v mvector)) (m* u v))
 
 (defmethod dot ((u mvector) (v mvector))
