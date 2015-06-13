@@ -1,4 +1,4 @@
-(in-package mobius-num.linear-operations-arrays)
+(in-package mobius.numeric.linear-operations-arrays)
 
 ;; * Implementation of linear operations for arrays
 ;; ** Utility for arrays

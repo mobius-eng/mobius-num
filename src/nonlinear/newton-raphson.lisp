@@ -1,4 +1,4 @@
-(in-package mobius-num.newton-raphson)
+(in-package mobius.numeric.newton-raphson)
 
 ;; * Newton-Raphson method
 ;; ** NEXT-LAMBDA: Creating bounds for X

@@ -1,4 +1,4 @@
-(in-package mobius-num.fixed-point)
+(in-package mobius.numeric.fixed-point)
 
 (defun fixed-point (criteria f x0 tmp1 tmp2)
   "Fixed point method solving x=f(x) starting from x0.

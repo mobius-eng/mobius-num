@@ -1,4 +1,4 @@
-(in-package mobius-num.diff)
+(in-package mobius.numeric.diff)
 
 (defvar *diff-step* 1.0d-6)
 

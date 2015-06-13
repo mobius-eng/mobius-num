@@ -1,4 +1,4 @@
-(in-package mobius-num.iterator)
+(in-package mobius.numeric.iterator)
 
 (defclass iterator ()
   ((status :initarg :status :accessor status)

@@ -2,7 +2,7 @@
 
 ;; have to by-pass the lock on CONTINUE
 ;; do not import: use it with ITERATOR: prefix
-(defpackage #:mobius-num.iterator
+(defpackage #:mobius.numeric.iterator
   (:use #:cl)
   (:nicknames #:iterator)
   (:shadow #:continue)
@@ -22,7 +22,7 @@
            #:to-finished!
            #:replace-value!))
 
-(defpackage #:mobius-num.criteria
+(defpackage #:mobius.numeric.criteria
   (:use #:cl)
   (:nicknames #:criteria)
   (:export #:finished-value
@@ -32,7 +32,7 @@
            #:limit-iterations
            #:build))
 
-(defpackage #:mobius-num.fixed-point
+(defpackage #:mobius.numeric.fixed-point
   (:use #:cl)
   (:export #:fixed-point))
 

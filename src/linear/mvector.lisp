@@ -1,4 +1,4 @@
-(in-package mobius-num.mvector)
+(in-package mobius.numeric.mvector)
 
 (declaim (optimize (speed 3) (debug 1) (space 1) (safety 1)))
 
@@ -367,7 +367,7 @@ ELTx! for (MVECTOR MVECTOR MVECTOR) (MVECTOR MVECTOR NUMBER) (MVECTOR NUMBER MVE
 (defmethod m/ ((a array) (b mvector) &optional (x0 (copy-mvector b)) x)
   "Uses BICGSTAB"
   (declare (ignore x))
-  (let ((y (mobius-num.bicg-stab:bicgstab a b x0)))
+  (let ((y (bicgstab a b x0)))
     (cond ((iterator:finished? y)
            (car (iterator:value y)))
           (t (error "M/: BICGSTAB failed to converge for matrix ~A and vector ~A"

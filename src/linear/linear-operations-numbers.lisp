@@ -1,4 +1,4 @@
-(in-package mobius-num.linear-operations-numbers)
+(in-package mobius.numeric.linear-operations-numbers)
 
 ;; * Implementation of linear operations for numbers
 ;; ** Shapes

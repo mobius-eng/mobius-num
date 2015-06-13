@@ -1,23 +1,17 @@
 (in-package cl-user)
 
-(defpackage #:mobius-num.fsolve
-  (:use #:cl
-        #:mobius-num.newton-raphson
-        #:mobius-num.linear-operations
-        #:mobius-num.diff)
-  (:import-from #:cl-num-utils #:num= #:*num=-tolerance*)
-  (:export #:fsolve))
-
-
-(defpackage #:mobius-num
+;; TODO: maybe should add cl-slice?
+(defpackage #:mobius.numeric
   (:use #:cl
         #:linop
-        #:mobius-num.fsolve)
-  (:import-from #:cl-num-utils    #:num= #:transpose)
-  (:import-from #:mobius-num.diff #:deriv)
+        #:mobius.numeric.fsolve
+        #:mv)
+  (:import-from #:cl-num-utils #:num= #:transpose #:*num=-tolerance*)
+  (:import-from #:mobius.numeric.diff #:deriv)
   (:export
    ;; CL-NUM-UTILS
    #:num=
+   #:*num=-tolerance*
    #:transpose
    ;; Linear operations
    #:vector-dim

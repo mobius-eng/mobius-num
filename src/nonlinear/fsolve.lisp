@@ -1,4 +1,4 @@
-(in-package mobius-num.fsolve)
+(in-package mobius.numeric.fsolve)
 
 (defun fsolve (f x0 &key
                       (simple-function t)

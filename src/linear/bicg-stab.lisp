@@ -1,4 +1,4 @@
-(in-package mobius-num.bicg-stab)
+(in-package mobius.numeric.bicg-stab)
 
 ;; * BICGSTAB method
 ;; ** Method state

@@ -1,4 +1,4 @@
-(in-package mobius-num.criteria)
+(in-package mobius.numeric.criteria)
 
 (defun finished-value (predicate &optional info)
   (lambda (x)

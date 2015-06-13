@@ -1,6 +1,6 @@
 (in-package cl-user)
 
-(defpackage #:mobius-num.linear-operations
+(defpackage #:mobius.numeric.linear-operations
   (:nicknames #:linop)
   (:use #:cl #:mobius.utils)
   (:import-from #:alexandria #:with-gensyms)
@@ -25,32 +25,33 @@
            #:outer-product)
   (:documentation "Definitions of generic linear operations"))
 
-(defpackage #:mobius-num.linear-operations-numbers
+(defpackage #:mobius.numeric.linear-operations-numbers
   (:use #:cl #:mobius.utils #:linop)
   (:import-from #:cl-num-utils #:transpose)
   (:import-from #:alexandria #:with-gensyms)
   (:documentation "Implementation of linear oprations for numbers"))
 
 
-(defpackage #:mobius-num.linear-operations-arrays
+(defpackage #:mobius.numeric.linear-operations-arrays
   (:use #:cl #:mobius.utils #:linop)
   (:import-from #:alexandria #:with-gensyms)
   (:import-from #:cl-num-utils #:transpose)
   (:documentation "Implementations of linear operations for numbers and arrays"))
 
-(defpackage #:mobius-num.bicg-stab
-  (:use #:cl #:linop #:mobius-num.fixed-point)
+(defpackage #:mobius.numeric.bicg-stab
+  (:nicknames #:bicgstab)
+  (:use #:cl #:linop #:mobius.numeric.fixed-point)
   (:import-from #:alexandria #:with-gensyms)
   (:export #:*bicgstab-tolerance*
            #:*bicgstab-max-iterations*
            #:bicgstab))
 
 
-(defpackage #:mobius-num.mvector
+(defpackage #:mobius.numeric.mvector
   (:nicknames #:mv)
   (:use #:cl #:mobius.utils
-        #:mobius-num.linear-operations
-        #:mobius-num.bicg-stab)
+        #:linop
+        #:bicgstab)
   (:import-from #:alexandria #:with-gensyms)
   (:import-from #:cl-num-utils #:num= #:transpose #:*num=-tolerance*)
   (:import-from #:lla #:mm)

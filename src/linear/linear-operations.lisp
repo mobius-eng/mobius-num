@@ -1,4 +1,4 @@
-(in-package mobius-num.linear-operations)
+(in-package mobius.numeric.linear-operations)
 
 (declaim (optimize (speed 3) (debug 1) (space 1) (safety 1)))
 

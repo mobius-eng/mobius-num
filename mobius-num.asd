@@ -29,6 +29,6 @@
                               :serial t
                               :components ((:file "package")
                                            (:file "newton-raphson")
-                                           (:file "diff")))))
-               (:file "package")
-               (:file "fsolve")))
+                                           (:file "diff")
+                                           (:file "fsolve")))
+                             (:file "package")))))
