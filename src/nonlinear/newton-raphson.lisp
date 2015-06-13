@@ -38,7 +38,7 @@
   "Globally convergent Newton-Raphson method to solve f(x)=0.
 Arguments:
  criteria   : criteria on the list of (f(x) x)
- lin-solver : linear solver (lin-solver A b x0 buffer)
+ lin-solver : linear solver (lin-solver A b x0 dest)
               solving A*x=b with initial guess x0 and possible use of buffer
  f          : (f x buffer) returns f(x), possibly uses buffer to store the result
  df         : Jacobian of f(x): (df x buffer) returns some form of the Jacobian that later
@@ -78,9 +78,6 @@ Result: ITERATOR with value (list (F x) x) for final approximation x"
                        (crt-inner (criteria:build
                                    (criteria:finished-value (partial #'l-finish-criteria g0))
                                    (criteria:limit-iterations 10))))
-                  (format t "Full Newton step is done: p = ~A~%f = ~A~%" p f-full)
-                  (format t "Initialize:~%")
-                  (format t "g0 = ~A~% Dg0 = ~A~%g1 = ~A~%" g0 Dg0 g1)
                   (flet ((g (l tmp)
                            (format t "Calculating g(~A)~%" l)
                            (abs-f (elt=+! (elt*! misc-buffer l p) x0) tmp)))
@@ -92,7 +89,6 @@ Result: ITERATOR with value (list (F x) x) for final approximation x"
                                    (list new-l l1 new-g gl1 new-f))))))
                       (if (l-finish-criteria g0 (list 1.0d0 nil g1 nil f-full))
                           (progn
-                            (format t "Accepting lambda = 1~%")
                             (list (e+! (car tmp) f-full) (e+! (cadr tmp) x0 p)))
                           (let* ((l0 1.0d0)
                                  (gl0 g1)

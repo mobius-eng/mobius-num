@@ -70,7 +70,7 @@
              (< (abs x) tolerance)))
      (flet ((improve (arg tmp)
               (multiple-value-bind (rho alpha w v p r x) (decompose arg)
-                (declare (type 'double-float rho alpha w))
+                (declare (type double-float rho alpha w))
                 (let* ((new-rho (let ((new-rho (dot r0 r)))
                                   (if (almost-zero? new-rho)
                                       (error "BICGSTAB: |rho| = 0")

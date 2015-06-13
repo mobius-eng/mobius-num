@@ -2,7 +2,7 @@
   :serial t
   :description "Some numerical algorithms"
   :author "Alexey Cherkaev <Alexey.Cherkaev@gmail.com>"
-  :license "MIT"
+  :license "LGPLv.3"
   :version "0.1.0"
   :depends-on (#:mobius-utils #:alexandria #:cl-num-utils #:lla)
   :components ((:module
@@ -20,11 +20,15 @@
                               :serial t
                               :components ((:file "package")
                                            (:file "linear-operations")
-                                           (:file "linear-operations-impl")
+                                           (:file "linear-operations-numbers")
+                                           (:file "linear-operations-arrays")
+                                           (:file "bicg-stab")
                                            (:file "mvector")))
                              (:module
                               "nonlinear"
                               :serial t
                               :components ((:file "package")
                                            (:file "newton-raphson")
-                                           (:file "diff")))))))
+                                           (:file "diff")))))
+               (:file "package")
+               (:file "fsolve")))

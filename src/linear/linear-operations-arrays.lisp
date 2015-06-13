@@ -1,55 +1,7 @@
-(in-package mobius-num.linear-operations-impl)
+(in-package mobius-num.linear-operations-arrays)
 
-;; * Implementation of linear operations on numbers and arrays
-;; ** Numbers
-;; *** Shapes
-
-(defmethod vector-dim ((u number))
-  (declare (ignore u))
-  0)
-
-;; *** Norm
-(defmethod norm ((v number)) (abs v))
-
-;; *** Negate
-(defmethod elt-negate ((u number)) (- u))
-(defmethod elt-negate! ((u number)) (- u))
-
-;; *** Zero
-(defmethod elt-zero ((u number)) (declare (ignore u)) 0)
-(defmethod elt-zero! ((u number)) (declare (ignore u)) 0)
-
-;; *** Arithmetic
-(defmacro define-number-methods-elt (primitive-op)
-  (let ((pure-op (intern (format nil "ELT~A" primitive-op)))
-        (assign-op (intern (format nil "ELT=~A!" primitive-op)))
-        (dest-op (intern (format nil "ELT~A!" primitive-op))))
-    (with-gensyms (u v dest)
-      `(progn
-         (defmethod ,pure-op ((,u number) (,v number)) (,primitive-op ,u ,v))
-         (defmethod ,assign-op ((,u number) (,v number))
-           (,primitive-op ,u ,v))
-         (defmethod ,dest-op ((,dest number) (,u number) (,v number))
-           (declare (ignore ,dest))
-           (,primitive-op ,u ,v))))))
-
-(define-number-methods-elt +)
-(define-number-methods-elt -)
-(define-number-methods-elt *)
-(define-number-methods-elt /)
-
-(defmethod elt=-rev/! ((u number) (v number)) (/ v u))
-
-;; *** Structured multiplications
-;; For numbers dot and m* return the same result
-(defmethod dot ((u number) (v number)) (* u v))
-
-(defmethod m* ((u number) (v number) &optional destination)
-  (declare (ignore destination))
-  (* u v))
-
-;; ** Vectors and arrays
-;; *** Utility for arrays
+;; * Implementation of linear operations for arrays
+;; ** Utility for arrays
 (defun operate-on-arrays (op c a &rest b)
   "Apply elementwise function OP to elements of arrays A and B, saving the result in C"
   (let ((a-dims (array-dimensions a))
@@ -70,11 +22,14 @@
           (process-dimensions a-dims nil))
         (error (format nil "OPERATE-ON-ARRAYS: arrays sizes do not match!")))))
 
-;; *** Shape
+;; ** Shape
 (defmethod vector-dim ((u vector))
   (array-dimension u 0))
 
-;; *** Norm
+(defmethod transpose ((u vector))
+  u)
+
+;; ** Norm
 (defmethod norm ((v vector))
   (case *NORM-TYPE*
     (NIL (loop for x across v maximizing (abs x)))
@@ -83,7 +38,7 @@
     (t (expt (loop for x across v summing (expt (abs x) *NORM-TYPE*))
              (/ *NORM-TYPE*)))))
 
-;; *** Negate
+;; ** Negate
 (defmethod elt-negate ((u vector))
   (let ((v (make-array (array-dimensions u)
                        :element-type (array-element-type u))))
@@ -106,7 +61,7 @@
   (operate-on-arrays #'- u u)
   u)
 
-;; *** Zero
+;; ** Zero
 (defmethod elt-zero ((u array))
   (let ((v (make-array (array-dimensions u)
                        :element-type (array-element-type u)
@@ -120,7 +75,7 @@
                      u
                      u))
 
-;; *** Arithmetic
+;; ** Arithmetic
 
 (defmacro define-array-methods-elt (primitive-op)
   (let ((pure-op (intern (format nil "ELT~A" primitive-op)))
@@ -169,7 +124,7 @@
   (operate-on-arrays #f(/ v %) u u)
   u)
 
-;; *** Structured multiplications
+;; ** Structured multiplications
 ;; for vectors (simpler implementation)
 (defmethod m* ((u vector) (v vector) &optional destination)
   (declare (ignore destination))
@@ -191,11 +146,13 @@
           (labels ((process-a (dims1 dims2 inds1 inds2)
                      (cond ((and (null dims1) (null dims2))
                             (setf (apply #'aref
-                                               x
-                                               (nconc (reverse inds1)
-                                                      (reverse inds2)))
+                                         x
+                                         (nconc (reverse inds1)
+                                                (reverse inds2)))
                                   (loop for i from 0 below u-n
-                                     summing (* (apply #'aref u (reverse (cons i inds1)))
+                                     summing (* (apply #'aref
+                                                       u
+                                                       (reverse (cons i inds1)))
                                                 (apply #'aref
                                                        v
                                                        (cons i (reverse inds2)))))))
@@ -224,3 +181,9 @@
        do (loop for j below m
              do (setf (aref a i j) (* (aref u i) (aref v j)))))
     a))
+
+;; ** Structured division
+(defmethod m/ ((a array) (b vector) &optional x0 dest)
+  "Implementation using LLA:SOLVE"
+  (declare (ignore x0 dest))
+  (lla:solve a b))

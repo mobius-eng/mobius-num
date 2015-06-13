@@ -350,6 +350,7 @@ ELTx! for (MVECTOR MVECTOR MVECTOR) (MVECTOR MVECTOR NUMBER) (MVECTOR NUMBER MVE
 (defmethod mm ((u mvector) (v mvector)) (m* u v))
 
 (defmethod dot ((u mvector) (v mvector))
+  "Computes inner-product of two MVECTORs regardless their index types"
   (let ((n (mvlength u)))
     (if (= n (mvlength v))
         (loop for i from 0 below n
@@ -358,11 +359,16 @@ ELTx! for (MVECTOR MVECTOR MVECTOR) (MVECTOR MVECTOR NUMBER) (MVECTOR NUMBER MVE
                :message (format nil "DOT: vectors have different lengthes")))))
 
 (defmethod outer-product ((u mvector) (v mvector) &optional buffer)
-  (if (and (up? u) (down? v) (= (mvlength u) (mvlength v)))
-      (outer-product (mvector-datum u) (mvector-datum v) buffer)
-      (error 'incompatible-mvector-size
-             :message (format nil "OUTER-PRODUCT: incompatible vector sizes: ~A ~A" u v))))
+  (outer-product (mvector-datum u) (mvector-datum v) buffer))
 
 (defmethod lla:solve ((A t) (B mvector))
   (array->mvector (mvector-index-type B) (lla:solve A (mvector-datum B))))
 
+(defmethod m/ ((a array) (b mvector) &optional (x0 (copy-mvector b)) x)
+  "Uses BICGSTAB"
+  (declare (ignore x))
+  (let ((y (mobius-num.bicg-stab:bicgstab a b x0)))
+    (cond ((iterator:finished? y)
+           (car (iterator:value y)))
+          (t (error "M/: BICGSTAB failed to converge for matrix ~A and vector ~A"
+                    a b)))))

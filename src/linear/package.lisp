@@ -15,6 +15,7 @@
            #:elt-negate #:elt-negate!
            #:elt-zero #:elt-zero!
            #:m*
+           #:m/
            #:dot
            #:e+ #:e=+! #:e+!
            #:e- #:e=-! #:e-!
@@ -24,23 +25,38 @@
            #:outer-product)
   (:documentation "Definitions of generic linear operations"))
 
-(defpackage #:mobius-num.linear-operations-impl
+(defpackage #:mobius-num.linear-operations-numbers
+  (:use #:cl #:mobius.utils #:linop)
+  (:import-from #:cl-num-utils #:transpose)
+  (:import-from #:alexandria #:with-gensyms)
+  (:documentation "Implementation of linear oprations for numbers"))
+
+
+(defpackage #:mobius-num.linear-operations-arrays
   (:use #:cl #:mobius.utils #:linop)
   (:import-from #:alexandria #:with-gensyms)
+  (:import-from #:cl-num-utils #:transpose)
   (:documentation "Implementations of linear operations for numbers and arrays"))
+
+(defpackage #:mobius-num.bicg-stab
+  (:use #:cl #:linop #:mobius-num.fixed-point)
+  (:import-from #:alexandria #:with-gensyms)
+  (:export #:*bicgstab-tolerance*
+           #:*bicgstab-max-iterations*
+           #:bicgstab))
+
 
 (defpackage #:mobius-num.mvector
   (:nicknames #:mv)
   (:use #:cl #:mobius.utils
-        #:mobius-num.linear-operations)
+        #:mobius-num.linear-operations
+        #:mobius-num.bicg-stab)
   (:import-from #:alexandria #:with-gensyms)
   (:import-from #:cl-num-utils #:num= #:transpose #:*num=-tolerance*)
   (:import-from #:lla #:mm)
-  (:export #:mvector
+  (:export #:mvector #:up #:down
            #:mvector-index-type
            #:mvector-datum
-           #:up
-           #:mvector down
            #:array->mvector
            #:array->up
            #:array->down
@@ -74,9 +90,3 @@
            #:mvector-map
            #:mvector-map!))
 
-(defpackage #:mobius-num.bicg-stab
-  (:use #:cl #:linop #:mobius-num.fixed-point)
-  (:import-from #:alexandria #:with-gensyms)
-  (:export #:*bicgstab-tolerance*
-           #:*bicgstab-max-iterations*
-           #:bicgstab))
