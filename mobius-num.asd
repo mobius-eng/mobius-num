@@ -3,7 +3,7 @@
   :description "Some numerical algorithms"
   :author "Alexey Cherkaev <Alexey.Cherkaev@gmail.com>"
   :license "LGPLv.3"
-  :version "0.1.0"
+  :version "0.0.1"
   :depends-on (#:mobius-utils #:alexandria #:cl-num-utils #:lla)
   :components ((:module
                 "src"
@@ -12,6 +12,7 @@
                               "base"
                               :serial t
                               :components ((:file "package")
+                                           (:file "utils")
                                            (:file "iterator")
                                            (:file "criteria")
                                            (:file "fixed-point")))
@@ -31,4 +32,24 @@
                                            (:file "newton-raphson")
                                            (:file "diff")
                                            (:file "fsolve")))
+                             (:module
+                              "ode"
+                              :serial t
+                              :components ((:file "package")
+                                           (:file "ode")
+                                           (:file "crank-nicolson")))
                              (:file "package")))))
+
+(asdf:defsystem #:mobius-num-tests
+  :serial t
+  :description "Tests and example of the use of numerical algorithms from MOBIUS-NUM"
+  :author "mobius-eng <Alexey.Cherkaev@gmail.com>"
+  :licence "LGPL v.3"
+  :version "0.0.1"
+  :depends-on (#:mobius-utils #:mobius-num #:fiveam)
+  :components ((:module
+                "tests"
+                :serial t
+                :components ((:file "package")
+                             (:file "base")
+                             (:file "linear")))))

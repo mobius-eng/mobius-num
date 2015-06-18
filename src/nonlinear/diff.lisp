@@ -26,7 +26,7 @@
             (setf (mvref x+/- i) (- (mvref x+/- i) dx2))
             (setf f- (funcall f x+/- f-))
             (setf (mvref x+/- i) (mvref x i))
-            (elt/! (elt-! f+ f-) dx2)
+            (e=/! (e=-! f+ f-) dx2)
             (setf (slice df t i) (mvector-datum f+))))
     df))
 

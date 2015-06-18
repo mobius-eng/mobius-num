@@ -2,32 +2,38 @@
 
 (defpackage #:mobius.numeric.linear-operations
   (:nicknames #:linop)
-  (:use #:cl #:mobius.utils)
+  (:use #:cl #:mobius.utils #:mobius.numeric.utils)
   (:import-from #:alexandria #:with-gensyms)
-  (:export #:vector-dim
-           #:*norm-type*
-           #:norm
-           #:elt+ #:elt=+! #:elt+!
-           #:elt- #:elt=-! #:elt-!
-           #:elt* #:elt=*! #:elt*!
-           #:elt/ #:elt=/! #:elt/!
-           #:elt=-rev/!
-           #:elt-negate #:elt-negate!
-           #:elt-zero #:elt-zero!
+  (:import-from #:cl-num-utils #:transpose)
+  (:export #:zero-vector #:zero-vector!
+           #:make-vector
+           #:vector-dim
+           #:map-vector #:map-vector!
+           #:mapi-vector #:mapi-vector!
+           #:reduce-vector
+           #:dot
+           #:outer-product
            #:m*
            #:m/
-           #:dot
+           #:transpose
+           #:duplicate-vector
+           #:negate-vector #:negate-vector!
+           #:*norm-type*
+           #:norm
            #:e+ #:e=+! #:e+!
            #:e- #:e=-! #:e-!
            #:e* #:e=*! #:e*!
            #:e/ #:e=/! #:e/!
            #:e-rev/ #:e=-rev/! #:e-rev/!
-           #:outer-product)
+           #:inner-product
+           #:identity-matrix
+           #:eabs #:esin #:ecos #:etan #:esignum #:eexp
+           #:eabs! #:esin! #:ecos! #:etan! #:esignum! :eexp!
+           #:define-vector-function)
   (:documentation "Definitions of generic linear operations"))
 
 (defpackage #:mobius.numeric.linear-operations-numbers
   (:use #:cl #:mobius.utils #:linop)
-  (:import-from #:cl-num-utils #:transpose)
   (:import-from #:alexandria #:with-gensyms)
   (:documentation "Implementation of linear oprations for numbers"))
 
@@ -44,8 +50,8 @@
   (:import-from #:alexandria #:with-gensyms)
   (:export #:*bicgstab-tolerance*
            #:*bicgstab-max-iterations*
-           #:bicgstab))
-
+           #:bicgstab)
+  (:documentation "BiCGStab linear solver for a generalised linear operator"))
 
 (defpackage #:mobius.numeric.mvector
   (:nicknames #:mv)
@@ -53,41 +59,25 @@
         #:linop
         #:bicgstab)
   (:import-from #:alexandria #:with-gensyms)
-  (:import-from #:cl-num-utils #:num= #:transpose #:*num=-tolerance*)
+  (:import-from #:cl-num-utils #:num= #:*num=-tolerance*)
   (:import-from #:lla #:mm)
   (:export #:mvector #:up #:down
-           #:mvector-index-type
-           #:mvector-datum
-           #:array->mvector
-           #:array->up
-           #:array->down
-           #:const-mvector
-           #:const-up
-           #:const-down
-           #:zero-mvector
-           #:zero-up
-           #:zero-down
-           #:build-mvector
-           #:build-up
-           #:build-down
-           #:delta-mvector
-           #:delta-up
-           #:delta-down
+           #:mvector-index-type #:mvector-datum
+           #:array->mvector #:array->up #:array->down
+           #:const-mvector  #:const-up  #:const-down
+           #:zero-mvector   #:zero-up   #:zero-down
+           #:build-mvector  #:build-up  #:build-down
+           #:delta-mvector  #:delta-up  #:delta-down
            #:copy-mvector
            #:mvref
            #:mvector?
-           #:column?
-           #:up?
-           #:row?
-           #:down?
+           #:column? #:up?
+           #:row?    #:down?
            #:mvlength
            #:comaptible?
            #:incompatible-mvector-size
            #:throw-incompatible-mvector-size
-           #:down-index
-           #:down-index!
-           #:up-index
-           #:up-index!
-           #:mvector-map
-           #:mvector-map!))
+           #:down-index #:down-index!
+           #:up-index   #:up-index!)
+  (:documentation "M(athematical) VECTOR implementation"))
 

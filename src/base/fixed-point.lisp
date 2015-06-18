@@ -9,7 +9,8 @@ Function F must accept two arguments: x and the buffer for the result;
 it returns f(x)"
   (let* ((tmps (let ((lst (list tmp1 tmp2)))
                  (setf (cddr lst) lst)
-                 lst)))
+                 lst))
+         (criteria (criteria:build criteria)))
     (loop for tmp in tmps
        for x = x0 then (funcall f (iterator:value y) tmp)
        for y = (funcall criteria x0) then (funcall criteria x)

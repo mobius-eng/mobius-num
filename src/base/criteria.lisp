@@ -1,63 +1,71 @@
 (in-package mobius.numeric.criteria)
 
-(defun finished-value (predicate &optional info)
-  (lambda (x)
-    (if (funcall predicate (iterator:value x))
-        (iterator:add-info! (iterator:to-finished! x)
-                            'finidhed-value
-                            info)
-        x)))
+(defstruct criteria list)
 
-(defun failed-value (predicate &optional info)
-  (lambda (x)
-    (if (funcall predicate (iterator:value x))
-        (iterator:add-info! (iterator:to-failed! x)
-                            'failed-value
-                            info)
-        x)))
+(defun add-to-list! (criteria id new-criterium)
+  (push (cons id new-criterium) criteria))
 
-(defun log-value (msg-fun)
-  (lambda (x)
-    (funcall msg-fun (iterator:value x))
-    x))
+(defun remove-from-list! (criteria id)
+  (delete id (criteria-list criteria) :key #'car))
 
-(defun converged (close? &optional info)
-  (let ((last-x nil))
-    (lambda (x)
-      (let ((v (iterator:value x)))
-       (cond ((null last-x) (setf last-x v) x)
-             ((funcall close? last-x v)
-              (iterator:add-info! (iterator:to-finished! x)
-                                  'converged
-                                  info))
-             (t (setf last-x v)
-                x))))))
+(defun init-criterium (criterium) (funcall (cdr criterium)))
 
-(defun limit-iterations (max-count)
-  (let ((left max-count))
-    (lambda (x)
-      (decf left)
-      (if (<= left 0)
-          (iterator:add-info! (iterator:to-failed! x)
-                              'limit-iterations
-                              (format nil "Max count reached ~D" max-count))
-          x))))
+(defun build (criteria)
+  (let ((all-criteria (mapcar #'init-criterium
+                              (criteria-list criteria))))
+    #'(lambda (x)
+        (let ((y (iterator:continue x)))
+          (loop for c in all-criteria
+             if (iterator:continue? y)
+             do (setf y (funcall c y))
+             else
+             return y
+             end
+             finally (return y))))))
 
-(defun build (&rest criteria)
-  (lambda (x)
-    (let ((y (iterator:continue x)))
-      (loop for c in criteria
-         if (iterator:continue? y)
-           do (setf y (funcall c y))
-         else
-           return y
-         end
-         finally (return y)))))
+(defun make (&rest criteria)
+  (make-criteria :list criteria))
 
-(defun modify-argument (criteria pre-modifier post-modifier)
-  (lambda (x)
-    (let* ((modified-x (funcall modification x))
-           (y (funcall criteria modified-x)))
-      (setf (iterator:value y) (funcall post-modifier
-                                        x
-                                        (iterator:value y)) ))))
+(defmacro define-criterium (name (args x &rest init) &body body)
+  `(defun ,name ,args
+     (cons ',name
+           (lambda ()
+             ,(if init
+                  `(let ,init
+                     (lambda (,x)
+                       ,@body
+                       ,x))
+                  `(lambda (,x)
+                     ,@body
+                     ,x))))))
+
+(define-criterium finished-value ((predicate &optional info) x)
+  (when (funcall predicate (iterator:value x))
+    (iterator:add-info! (iterator:to-finished! x) 'finished-value info)))
+
+(define-criterium failed-value ((predicate &optional info) x)
+  (when (funcall predicate (iterator:value x))
+    (iterator:add-info! (iterator:to-failed! x) 'failed-value info)))
+
+(define-criterium log-value ((msg-fun) x)
+  (funcall msg-fun (iterator:value x)))
+
+
+(define-criterium converged ((close? &optional info) x (last-x nil))
+  (let ((v (iterator:value x)))
+    (cond ((null last-x) (setf last-x v))
+          ((funcall close? last-x v)
+           (iterator:add-info! (iterator:to-finished! x) 'converged info))
+          (t (setf last-x v)))))
+
+(define-criterium limit-iterations ((max-count) x (left max-count))
+  (decf left)
+  (when (<= left 0)
+    (iterator:add-info! (iterator:to-failed! x)
+                        'limit-iterations
+                        (format nil "Max count reached ~D" max-count))))
+
+(define-criterium modify-value ((modifier) x)
+  (let ((v (iterator:value x)))
+    (setf (iterator:value x) (funcall modifier v))))
+

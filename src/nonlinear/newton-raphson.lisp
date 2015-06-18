@@ -46,17 +46,17 @@ Arguments:
  x0         : initial guess
  df-tmp     : buffer for Jacobian value, used when calling (DF X Df-TMP)
 Result: ITERATOR with value (list (F x) x) for final approximation x"
-  (let ((p-buffer (elt-zero x0))
-        (f0-buffer (elt-zero x0))
-        (f-full-buffer (elt-zero x0))
-        (misc-buffer (elt-zero x0))
-        (fl1-buffer (elt-zero x0))
-        (l-iter-buffer1 (elt-zero x0))
-        (l-iter-buffer2 (elt-zero x0))
-        (main-buffer1 (list (elt-zero x0) (elt-zero x0)))
-        (main-buffer2 (list (elt-zero x0) (elt-zero x0))))
+  (let ((p-buffer (zero-vector x0))
+        (f0-buffer (zero-vector x0))
+        (f-full-buffer (zero-vector x0))
+        (misc-buffer (zero-vector x0))
+        (fl1-buffer (zero-vector x0))
+        (l-iter-buffer1 (zero-vector x0))
+        (l-iter-buffer2 (zero-vector x0))
+        (main-buffer1 (list (zero-vector x0) (zero-vector x0)))
+        (main-buffer2 (list (zero-vector x0) (zero-vector x0))))
     (flet ((full-newton-step (dest f-value df-value)
-            (elt-negate! (funcall lin-solver df-value f-value f-value dest)))
+            (negate-vector! (funcall lin-solver df-value f-value f-value dest)))
           (abs-f (x f-buffer)
             (let ((f-value (funcall f x f-buffer)))
               (values (* 0.5 (dot f-value f-value)) f-value)))
@@ -70,17 +70,18 @@ Result: ITERATOR with value (list (F x) x) for final approximation x"
      (flet ((improve (arg tmp)
               (destructuring-bind (f0 x0) arg
                 (let* ((p (full-newton-step p-buffer f0 (funcall df x0 df-tmp)))
-                       (f-full (funcall f (elt+! misc-buffer x0 p) f-full-buffer))
+                       (f-full (funcall f (e+! misc-buffer x0 p) f-full-buffer))
                        (f0_2 (dot f0 f0))
                        (g0 (* 0.5 f0_2))
                        (Dg0 (- f0_2))
                        (g1 (* 0.5 (dot f-full f-full)))
-                       (crt-inner (criteria:build
-                                   (criteria:finished-value (partial #'l-finish-criteria g0))
+                       (crt-inner (criteria:make
+                                   (criteria:finished-value
+                                    (partial #'l-finish-criteria g0))
                                    (criteria:limit-iterations 10))))
                   (flet ((g (l tmp)
                            (format t "Calculating g(~A)~%" l)
-                           (abs-f (elt=+! (elt*! misc-buffer l p) x0) tmp)))
+                           (abs-f (e=+! (e*! misc-buffer l p) x0) tmp)))
                     (flet ((improve-l (arg tmp)
                              (destructuring-bind (l1 l2 gl1 gl2 fl1) arg
                                (declare (ignore fl1))
@@ -103,7 +104,7 @@ Result: ITERATOR with value (list (F x) x) for final approximation x"
                                        (format t "Acceptable lambda = ~A~%"
                                                (car (iterator:value l-final)))
                                        (let* ((l (car (iterator:value l-final)))
-                                              (new-x (elt=+! (elt*! (cadr tmp) l p) x0)))
+                                              (new-x (e=+! (e*! (cadr tmp) l p) x0)))
                                          (list (funcall f new-x (car tmp)) new-x)))
                                       (t (error "NEWTON-METHOD: cannot keep X bound")))))))))))))
        (fixed-point criteria #'improve

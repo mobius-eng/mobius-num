@@ -1,46 +1,31 @@
 (in-package mobius.numeric.linear-operations-numbers)
 
 ;; * Implementation of linear operations for numbers
-;; ** Shapes
-
+;; ** Constructors
+(defmethod zero-vector ((u number)) (declare (ignore u)) 0)
+(defmethod zero-vector! ((u number)) (declare (ignore u)) 0)
+(defmethod make-vector ((u number) n) (declare (ignore u n)) 0)
+;; ** Shape
 (defmethod vector-dim ((u number))
   (declare (ignore u))
   0)
+;; ** Mapping
+(defmethod map-vector ((u number) f &key dest other-vectors)
+  (declare (ignore dest))
+  (apply f u other-vectors))
 
-(defmethod transpose ((x number))
-  x)
+(defmethod map-vector! ((u number) f &key other-vectors)
+  (apply f u other-vectors))
 
-;; ** Norm
-(defmethod norm ((v number)) (abs v))
+(defmethod mapi-vector ((u number) f &key dest other-vectors)
+  (declare (ignore dest))
+  (apply f 0 u other-vectors))
 
-;; ** Negate
-(defmethod elt-negate ((u number)) (- u))
-(defmethod elt-negate! ((u number)) (- u))
+(defmethod mapi-vector! ((u number) f &key other-vectors)
+  (apply f 0 u other-vectors))
 
-;; ** Zero
-(defmethod elt-zero ((u number)) (declare (ignore u)) 0)
-(defmethod elt-zero! ((u number)) (declare (ignore u)) 0)
-
-;; ** Arithmetic
-(defmacro define-number-methods-elt (primitive-op)
-  (let ((pure-op (intern (format nil "ELT~A" primitive-op)))
-        (assign-op (intern (format nil "ELT=~A!" primitive-op)))
-        (dest-op (intern (format nil "ELT~A!" primitive-op))))
-    (with-gensyms (u v dest)
-      `(progn
-         (defmethod ,pure-op ((,u number) (,v number)) (,primitive-op ,u ,v))
-         (defmethod ,assign-op ((,u number) (,v number))
-           (,primitive-op ,u ,v))
-         (defmethod ,dest-op ((,dest number) (,u number) (,v number))
-           (declare (ignore ,dest))
-           (,primitive-op ,u ,v))))))
-
-(define-number-methods-elt +)
-(define-number-methods-elt -)
-(define-number-methods-elt *)
-(define-number-methods-elt /)
-
-(defmethod elt=-rev/! ((u number) (v number)) (/ v u))
+(defmethod reduce-vector ((u number) f initial-value)
+  (funcall f initial-value u))
 
 ;; ** Structured multiplications
 ;; For numbers dot and m* return the same result
@@ -59,3 +44,5 @@
   (declare (ignore x0 dest))
   (/ b a))
 
+;; From CL-NUM-UTILS
+(defmethod transpose ((x number)) x)

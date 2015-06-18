@@ -6,20 +6,6 @@
 ;; Vector that can be either column (up indices) or a row (down
 ;; indices).
 
-;; ** Utilities
-
-(defun copy-1d-array (array)
-  (let ((a (make-array (array-dimensions array)
-                       :element-type (array-element-type array))))
-    (loop for i from 0 below (array-dimension array 0)
-       do (setf (aref a i) (aref array i)))
-    a))
-
-(defun copy-1d-array! (dest array)
-  (loop for i from 0 below (array-dimension array 0)
-     do (setf (aref dest i) (aref array i)))
-  nil)
-
 ;; ** Definition
 (defclass mvector ()
   ((datum :initarg :datum
@@ -123,7 +109,7 @@ except for index, which has a provided value"
   "Creates an independent copy of MVECTOR"
   (make-instance 'mvector
                  :index-type (mvector-index-type mvector)
-                 :datum (copy-1d-array (mvector-datum mvector))))
+                 :datum (duplicate-vector (mvector-datum mvector))))
 
 ;; ** Referencing items
 
@@ -170,150 +156,74 @@ except for index, which has a provided value"
 (defun down-index (v)
   (make-instance 'mvector
                  :index-type :down
-                 :datum (copy-1d-array (mvector-datum v))))
+                 :datum (duplicate-vector (mvector-datum v))))
 
 (defun up-index (v)
   (make-instance 'mvector
                  :index-type :up
-                 :datum (copy-1d-array (mvector-datum v))))
+                 :datum (duplicate-vector (mvector-datum v))))
 
 (defun down-index! (v) (setf (mvector-index-type v) :down) nil)
 (defun up-index! (v) (setf (mvector-index-type v) :up) nil)
+
+;; ** Generics implementations
+;; *** Constructors
+(defmethod zero-vector ((u mvector))
+  (zero-mvector (mvector-index-type u) (mvlength u)))
+
+(defmethod zero-vector! ((u mvector))
+  (map-vector!  u #'(lambda (x) (declare (ignore x)) 0.0d0)))
+
+(defmethod make-vector ((u mvector) n)
+  (zero-mvector (mvector-index-type u) n))
+
+;; *** Shape
+(defmethod vector-dim ((u mvector)) (mvlength u))
 
 (defmethod transpose ((v mvector))
   (if (up? v)
       (down-index v)
       (up-index v)))
 
-;; ** More utility
-(defun mvector-map (f v &rest vs)
+;; *** Mapping
+(defmethod map-vector ((v mvector) f &key dest other-vectors)
   (let* ((n (mvlength v))
-         (w (zero-mvector (mvector-index-type v) n)))
+         (w (or dest (zero-mvector (mvector-index-type v) n))))
     (loop for i from 0 below n
-       do (setf (mvref w i) (apply f (mvref v i) (mapcar #f(mvref % i) vs))))
+       do (setf (mvref w i)
+                (apply f (mvref v i) (mapcar #f(mvref % i) other-vectors))))
     w))
 
-(defun mvector-map! (f v &rest vs)
+(defmethod map-vector! ((v mvector) f &key other-vectors)
   (let* ((n (mvlength v)))
     (loop for i from 0 below n
-       do (setf (mvref v i) (apply f (mvref v i) (mapcar #f(mvref % i) vs))))
+       do (setf (mvref v i)
+                (apply f (mvref v i) (mapcar #f(mvref % i) other-vectors))))
     v))
 
-(defmethod vector-dim ((u mvector)) (mvlength u))
+(defmethod mapi-vector ((v mvector) f &key dest other-vectors)
+  (let* ((n (mvlength v))
+         (w (or dest (zero-mvector (mvector-index-type v) n))))
+    (loop for i from 0 below n
+       do (setf (mvref w i)
+                (apply f i (mvref v i) (mapcar #f(mvref % i) other-vectors))))
+    w))
 
-;; ** Arithmetic operations
-(defmacro define-mvector-methods-elt (op)
-  "Constructs ELT-operations for MVECTOR, including destructive versions.
-ELTx for (MVECTOR MVECTOR) (MVECTOR NUMBER) (NUMBER MVECTOR) (MVECTOR ARRAY) (ARRAY MVECTOR)
-ELT=x! for (MVECTOR MVECTOR) (MVECTOR NUMBER) (MVECTOR ARRAY)
-ELTx! for (MVECTOR MVECTOR MVECTOR) (MVECTOR MVECTOR NUMBER) (MVECTOR NUMBER MVECTOR)"
-  (let ((pure-op (intern (format nil "ELT~A" op)))
-        (assign-op (intern (format nil "ELT=~A!" op)))
-        (dest-op (intern (format nil "ELT~A!" op)))
-        (op-name (symbol-name op)))
-    (with-gensyms (u v w dest i x y z)
-      `(progn
-         (defmethod ,pure-op ((,u mvector) (,v mvector))
-           (if (compatible? ,u ,v)
-               (mvector-map #',op ,u ,v)
-               (throw-incomaptible-mvector-size ,op-name ,u ,v)))
-         (defmethod ,pure-op ((,u mvector) (,v number))
-           (mvector-map #f(,op % v) ,u))
-         (defmethod ,pure-op ((,u number) (,v mvector))
-           (mvector-map #f(,op ,u %) ,v))
-         (defmethod ,pure-op ((,u mvector) (,v array))
-           (if (equal (array-dimensions (mvector-datum ,u))
-                      (array-dimensions ,v))
-               (let ((,w (zero-mvector (mvector-index-type ,u) (mvlength ,u))))
-                 (loop for ,i below (mvlength ,u)
-                    do (setf (mvref ,v ,i) (,op (mvref ,u i) (aref ,v i))))
-                 ,w)))
-         (defmethod ,pure-op ((,v array) (,u mvector))
-           (if (equal (array-dimensions (mvector-datum ,u))
-                      (array-dimensions ,v))
-               (let ((,w (zero-mvector (mvector-index-type ,u) (mvlength ,u))))
-                 (loop for ,i below (mvlength ,u)
-                    do (setf (mvref ,v ,i) (,op (mvref ,u i) (aref ,v i))))
-                 ,w)))
-         (defmethod ,assign-op ((,u mvector) (,v mvector))
-           (if (compatible? ,u ,v)
-               (mvector-map! #',op ,u ,v)
-               (throw-incomaptible-mvector-size ,op-name ,u ,v)))
-         (defmethod ,assign-op ((,u mvector) (,v number))
-           (mvector-map! #f(,op % ,v) ,u))
-         (defmethod ,assign-op ((,u mvector) (,v array))
-           (if (equal (array-dimensions (mvector-datum ,u))
-                      (array-dimensions ,v))
-               (loop for i below (mvlength ,u)
-                  do (setf (mvref ,u i) (,op (mvref ,u i) (aref ,v i)))
-                  finally (return ,u))
-               (throw-incomaptible-mvector-size ,op-name ,u ,v)))
-         (defmethod ,dest-op ((,dest mvector) (,u mvector) (,v mvector))
-           (if (and (compatible? ,dest ,u) (compatible? ,u ,v))
-               (mvector-map! (lambda (,x ,y ,z)
-                               (declare (ignore ,x))
-                               (,op ,y ,z))
-                             ,dest
-                             ,u
-                             ,v)
-               (throw-incomaptible-mvector-size ,op ,u ,v)))
-         (defmethod ,dest-op ((,dest mvector) (,u mvector) (,v number))
-           (if (compatible? ,dest ,u)
-               (mvector-map! (lambda (,x ,y)
-                               (declare (ignore ,x))
-                               (,op ,y ,v))
-                             ,dest
-                             ,u)
-               (throw-incomaptible-mvector-size ,op ,dest ,u)))
-         (defmethod ,dest-op ((,dest mvector) (,v number) (,u mvector))
-           (if (compatible? ,dest ,u)
-               (mvector-map! (lambda (,x ,y)
-                               (declare (ignore ,x))
-                               (,op ,y ,v))
-                             ,dest
-                             ,u)
-               (throw-incomaptible-mvector-size ,op ,dest ,u)))))))
+(defmethod mapi-vector! ((v mvector) f &key other-vectors)
+  (let* ((n (mvlength v)))
+    (loop for i from 0 below n
+       do (setf (mvref v i)
+                (apply f i (mvref v i) (mapcar #f(mvref % i) other-vectors))))
+    v))
 
-(define-mvector-methods-elt +)
-(define-mvector-methods-elt -)
-(define-mvector-methods-elt *)
-(define-mvector-methods-elt /)
-
-(defmethod elt=-rev/! ((u mvector) (v mvector))
-  (if (compatible? u v)
-      (mvector-map! (lambda (x y) (/ y x)) u v)))
-
-(defmethod elt=-rev/! ((u mvector) (v number))
-  (mvector-map! #f(/ v %) u))
-
-
-(defmethod elt-negate ((u mvector))
-  (mvector-map #'- u))
-
-(defmethod elt-negate! ((u mvector))
-  (mvector-map! #'- u)
-  u)
-
-(defmethod elt-zero ((u mvector))
-  (zero-mvector (mvector-index-type u) (mvlength u)))
-
-(defmethod elt-zero! ((u mvector))
-  (mvector-map! (lambda (x) (declare (ignore x)) 0.0d0) u))
-
+;; *** Reduction
+(defmethod reduce-vector ((u mvector) f initial-value)
+  (reduce-vector (mvector-datum u) f initial-value))
 
 ;; ** Numeric properties
 
-(defmethod norm ((v mvector))
-  (case *norm-type*
-    (nil (loop for x across (mvector-datum v) maximizing (abs x)))
-    (1 (loop for x across (mvector-datum v) summing (abs x)))
-    (2 (sqrt (loop for x across (mvector-datum v) summing (* x x))))
-    (otherwise (expt (loop for x across (mvector-datum v)
-                        summing (expt x *norm-type*))
-                     (/ *norm-type*)))))
-
 (defmethod num= ((u mvector) (v mvector) &optional eps)
-  (num= (norm (elt- u v)) 0.0d0 (or eps *num=-tolerance*)))
+  (num= (norm (e- u v)) 0.0d0 (or eps *num=-tolerance*)))
 
 (defmethod m* ((u mvector) (v mvector) &optional destination)
   (cond ((and (down? u) (up? v))                                       ; inner-product
@@ -341,7 +251,7 @@ ELTx! for (MVECTOR MVECTOR MVECTOR) (MVECTOR MVECTOR NUMBER) (MVECTOR NUMBER MVE
   (cond ((and (down? v) (vectorp u)) (outer-product u (mvector-datum v) destination))
         ((and (vectorp u) (up? v)) (dot u (mvector-datum v)))
         ((= (array-rank u) 2)
-         (let ((dest (or destination (elt-zero v))))
+         (let ((dest (or destination (zero-vector v))))
            (setf (mvector-datum dest)
                  (m* u (mvector-datum v) (mvector-datum dest)))
            dest))

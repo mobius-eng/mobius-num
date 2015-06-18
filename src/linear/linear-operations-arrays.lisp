@@ -19,8 +19,34 @@
                              (other-dims (cdr dims)))
                          (loop for i from 0 below n
                             do (process-dimensions other-dims (cons i inds)))))))
-          (process-dimensions a-dims nil))
+          (process-dimensions a-dims nil)
+          c)
         (error (format nil "OPERATE-ON-ARRAYS: arrays sizes do not match!")))))
+
+;; ** Construction
+(defmethod zero-vector ((u array))
+  (let ((element-type (array-element-type u)))
+    (make-array (array-dimensions u)
+                :element-type element-type
+               :initial-element (coerce 0 element-type))))
+
+(defmethod zero-vector! ((u vector))
+  (loop for i below (array-dimension u 0)
+     do (setf (aref u i) 0.0d0))
+  u)
+
+(defmethod zero-vector! ((u array))
+  (operate-on-arrays (lambda (&rest args)
+                       (declare (ignore args))
+                       (coerce 0 (array-element-type u)))
+                     u
+                     u))
+
+(defmethod make-vector ((u vector) n)
+  (let ((element-type (array-element-type u)))
+    (make-array n
+                :element-type element-type
+               :initial-element (coerce 0 element-type))))
 
 ;; ** Shape
 (defmethod vector-dim ((u vector))
@@ -28,101 +54,52 @@
 
 (defmethod transpose ((u vector))
   u)
+;; ** Mapping and reduction
+;; *** Vectors
+(defmethod map-vector ((u vector) f &key dest other-vectors)
+  (let ((w (or dest (make-array (array-dimension u 0)
+                                :element-type (array-element-type u)))))
+   (loop for i below (array-dimension u 0)
+      do (setf (aref w i)
+               (apply f (aref u i) (mapcar #'(lambda (v) (aref v i)) other-vectors))))
+   w))
 
-;; ** Norm
-(defmethod norm ((v vector))
-  (case *NORM-TYPE*
-    (NIL (loop for x across v maximizing (abs x)))
-    (1 (loop for x across v summing (abs x)))
-    (2 (sqrt (loop for x across v summing (* x x))))
-    (t (expt (loop for x across v summing (expt (abs x) *NORM-TYPE*))
-             (/ *NORM-TYPE*)))))
-
-;; ** Negate
-(defmethod elt-negate ((u vector))
-  (let ((v (make-array (array-dimensions u)
-                       :element-type (array-element-type u))))
-    (loop for i below (array-dimension u 0)
-       do (setf (aref v i) (- (aref u i))))
-    v))
-
-(defmethod elt-negate! ((u vector))
+(defmethod map-vector! ((u vector) f &key other-vectors)
   (loop for i below (array-dimension u 0)
-     do (setf (aref u i) (- (aref u i))))
+     do (setf (aref u i)
+              (apply f
+                     (aref u i)
+                     (mapcar #'(lambda (v) (aref v i)) other-vectors))))
   u)
 
-(defmethod elt-negate ((u array))
-  (let ((w (make-array (array-dimensions u)
-                       :element-type (array-element-type u))))
-    (operate-on-arrays #'- w u)
-    w))
+(defmethod mapi-vector ((u vector) f &key dest other-vectors)
+  (let ((w (or dest (make-array (array-dimension u 0)
+                                :element-type (array-element-type u)))))
+   (loop for i below (array-dimension u 0)
+      do (setf (aref w i)
+               (apply f i (aref u i) (mapcar #'(lambda (v) (aref v i)) other-vectors))))
+   w))
 
-(defmethod elt-negate! ((u array))
-  (operate-on-arrays #'- u u)
+(defmethod mapi-vector! ((u vector) f &key other-vectors)
+  (loop for i below (array-dimension u 0)
+     do (setf (aref u i)
+              (apply f
+                     i
+                     (aref u i)
+                     (mapcar #'(lambda (v) (aref v i)) other-vectors))))
   u)
 
-;; ** Zero
-(defmethod elt-zero ((u array))
-  (let ((v (make-array (array-dimensions u)
-                       :element-type (array-element-type u)
-                       :initial-element 0)))
-    v))
+(defmethod reduce-vector ((u vector) f initial-value)
+  (reduce f u :initial-value initial-value))
+;; *** Arrays
+;; Not all methods are applicable to arrays in general
+(defmethod map-vector ((u array) f &key dest other-vectors)
+  (let ((w (or dest (zero-vector u))))
+   (operate-on-arrays w u f other-vectors)))
 
-(defmethod elt-zero! ((u array))
-  (operate-on-arrays (lambda (&rest args)
-                       (declare (ignore args))
-                       0)
-                     u
-                     u))
+(defmethod map-vector! ((u array) f &key other-vectors)
+  (operate-on-arrays u u f other-vectors))
 
-;; ** Arithmetic
-
-(defmacro define-array-methods-elt (primitive-op)
-  (let ((pure-op (intern (format nil "ELT~A" primitive-op)))
-        (assign-op (intern (format nil "ELT=~A!" primitive-op)))
-        (dest-op (intern (format nil "ELT~A!" primitive-op))))
-    (with-gensyms (u v w)
-      `(progn
-         (defmethod ,pure-op ((,u array) (,v array))
-           (let ((,w (make-array (array-dimensions ,u)
-                                 :element-type (array-element-type ,u))))
-             (operate-on-arrays #',primitive-op ,w ,u ,v)
-             ,w))
-         (defmethod ,assign-op ((,u array) (,v array))
-           (operate-on-arrays #',primitive-op ,u ,u ,v)
-           ,u)
-         (defmethod ,dest-op ((,w array) (,u array) (,v array))
-           (operate-on-arrays #',primitive-op ,w ,u ,v)
-           ,w)
-         (defmethod ,pure-op ((,u array) (,v number))
-           (let ((,w (make-array (array-dimensions ,u)
-                                 :element-type (array-element-type ,u))))
-             (operate-on-arrays #f(,primitive-op % ,v) ,w ,u)
-             ,w))
-         (defmethod ,pure-op ((,u number) (,v array))
-           (let ((,w (make-array (array-dimensions ,v)
-                                 :element-type (array-element-type ,v))))
-             (operate-on-arrays #f(,primitive-op % ,u) ,w ,v)
-             ,w))
-         (defmethod ,assign-op ((,u array) (,v number))
-           (operate-on-arrays #f(,primitive-op % ,v) ,u ,u)
-           ,u)
-         (defmethod ,dest-op ((,w array) (,u array) (,v number))
-           (operate-on-arrays #f(,primitive-op % ,v) ,w ,u)
-           ,w)))))
-
-(define-array-methods-elt +)
-(define-array-methods-elt -)
-(define-array-methods-elt *)
-(define-array-methods-elt /)
-
-(defmethod elt=-rev/! ((u array) (v array))
-  (operate-on-arrays (lambda (eu ev) (/ ev eu)) u u v)
-  u)
-
-(defmethod elt=-rev/! ((u array) (v number))
-  (operate-on-arrays #f(/ v %) u u)
-  u)
 
 ;; ** Structured multiplications
 ;; for vectors (simpler implementation)
@@ -134,6 +111,7 @@
         (loop for i below u-dim
            summing (* (aref u i) (aref v i)))
         (error "M* (VECTOR VECTOR): dimensions do not match"))))
+
 ;; for multidimensional arrays
 (defmethod m* ((u array) (v array) &optional destination)
   (let* ((u-dims (array-dimensions u))

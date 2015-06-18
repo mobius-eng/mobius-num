@@ -3,30 +3,47 @@
 ;; TODO: maybe should add cl-slice?
 (defpackage #:mobius.numeric
   (:use #:cl
+        #:mobius.numeric.utils
         #:linop
         #:mobius.numeric.fsolve
-        #:mv)
-  (:import-from #:cl-num-utils #:num= #:transpose #:*num=-tolerance*)
+        #:mv
+        #:ode
+        #:mobius.numeric.crank-nicolson)
+  (:import-from #:cl-num-utils #:num=  #:*num=-tolerance*)
   (:import-from #:mobius.numeric.diff #:deriv)
   (:export
    ;; CL-NUM-UTILS
    #:num=
    #:*num=-tolerance*
    #:transpose
+   ;; Constants
+   #:++INF+
+   #:+-INF+
+   #:+NAN+
    ;; Linear operations
    #:vector-dim
    #:norm
-   #:elt-negate #:elt-negate!
-   #:elt-zero   #:elt-zero!
+   #:*norm-type*
+   #:negate-vector #:negate-vector!
+   #:zero-vector   #:zero-vector!
+   #:make-vector
+   #:map-vector #:map-vector!
+   #:mapi-vector #:mapi-vector!
+   #:reduce-vector
    #:m*
    #:m/
    #:dot
+   #:transpose
+   #:duplicate-vector
    #:e+ #:e=+! #:e+!
    #:e- #:e=-! #:e-!
    #:e* #:e=*! #:e*!
    #:e/ #:e=/! #:e/!
    #:e-rev/ #:e=-rev/! #:e-rev/!
-   #:outer-product
+   #:outer-product #:inner-product
+   #:eabs #:esin #:ecos #:etan #:eexp #:esignum
+   #:eabs! #:esin! #:ecos! #:etan! #:eexp! #:esignum!
+   #:define-vector-function
    ;; MVECTOR
    #:mvector #:up #:down
    #:mvector-index-type
@@ -47,8 +64,10 @@
    #:throw-incompatible-mvector-size
    #:down-index  #:down-index!
    #:up-index    #:up-index!
-   #:mvector-map #:mvector-map!
    ;; DIFF
    #:deriv
    ;; FSOLVE
-   #:fsolve))
+   #:fsolve
+   ;; ODE
+   #:ode-step
+   #:make-crank-nicolson-method))

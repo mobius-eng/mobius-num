@@ -2,8 +2,8 @@
 
 (defun fsolve (f x0 &key
                       (simple-function t)
-                      (criteria (criteria:build (criteria:converged #'num=)
-                                                (criteria:limit-iterations 20)))
+                      (criteria (criteria:make (criteria:converged #'num=)
+                                               (criteria:limit-iterations 20)))
                       df
                       (df-tmp (outer-product x0 x0))
                       (lin-solver #'m/))
