@@ -47,10 +47,6 @@
   (declare (ignore buffer))
   (* u v))
 
-(defmethod inner-product ((u number) (v number))
-  (* u v))
-
-
 ;; ** Structured division
 (defmethod m/ ((a number) (b number) &optional x0)
   (declare (ignore x0 dest))

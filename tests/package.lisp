@@ -3,18 +3,30 @@
 (defpackage #:mobius.numeric.tests.base
   (:nicknames #:num-tests-base)
   (:use #:cl
-        #:mobius.numeric
+        #:mobius.numeric.utils
+        #:criteria
+        #:fixed-point
+        #:lingenerics
+        #:linfunctions
         #:mobius.numeric.fixed-point
         #:it.bese.fiveam)
-  (:import-from #:mobius.utils #:average #:%))
+  (:import-from #:mobius.utils #:average #:%)
+  (:import-from #:cl-num-utils #:num=))
 
 
 (defpackage #:mobius.numeric.tests.linear
   (:nicknames #:num-tests-linear)
-  (:use #:cl #:mobius.numeric #:it.bese.fiveam)
-  (:import-from #:mobius.utils #:%))
+  (:use #:cl
+        #:mobius.numeric.utils
+        #:lingenerics
+        #:linfunctions
+        #:criteria
+        #:bicgstab
+        #:it.bese.fiveam)
+  (:import-from #:mobius.utils #:%)
+  (:import-from #:cl-num-utils #:num=))
 
-(defpackage #:mobius.numeric.tests.nonlinear
-  (:nicknames #:num-tests-nonlinear)
-  (:use #:cl #:mobius.numeric #:it.bese.fiveam)
-  (:import-from #:mobius.utils #:%))
+;; (defpackage #:mobius.numeric.tests.nonlinear
+;;   (:nicknames #:num-tests-nonlinear)
+;;   (:use #:cl #:mobius.numeric #:it.bese.fiveam)
+;;   (:import-from #:mobius.utils #:%))

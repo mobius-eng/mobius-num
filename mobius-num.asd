@@ -20,25 +20,31 @@
                               "linear"
                               :serial t
                               :components ((:file "package")
-                                           (:file "linear-operations")
-                                           (:file "linear-operations-numbers")
-                                           (:file "linear-operations-arrays")
+                                           (:file "lingenerics")
+                                           (:file "impl-numbers")
+                                           (:file "impl-vectors")
+                                           (:file "impl-arrays")
+                                           (:file "linfunctions")
                                            (:file "bicg-stab")
-                                           (:file "mvector")))
-                             (:module
-                              "nonlinear"
-                              :serial t
-                              :components ((:file "package")
-                                           (:file "newton-raphson")
-                                           (:file "diff")
-                                           (:file "fsolve")))
-                             (:module
-                              "ode"
-                              :serial t
-                              :components ((:file "package")
-                                           (:file "ode")
-                                           (:file "crank-nicolson")))
-                             (:file "package")))))
+                                           ;; (:file "mvector")
+                                           ))
+                             ;; (:module
+                             ;;  "nonlinear"
+                             ;;  :serial t
+                             ;;  :components ((:file "package")
+                             ;;               (:file "newton-raphson")
+                             ;;               (:file "diff")
+                             ;;               (:file "fsolve")))
+                             ;; (:module
+                             ;;  "ode"
+                             ;;  :serial t
+                             ;;  :components ((:file "package")
+                             ;;               (:file "ode")
+                             ;;               (:file "crank-nicolson")))
+                             ;;  (:file "package")
+                             )
+                ))
+  )
 
 (asdf:defsystem #:mobius-num-tests
   :serial t

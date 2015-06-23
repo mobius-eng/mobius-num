@@ -13,11 +13,14 @@ DESTINATION can be EQ to ORIGINAL-VECTOR"))
 different dimension"))
 
 (defun list->vector (vector-type list)
-  "Convert list into a vector of the specified type"
+  "Convert list into a vector of the specified type.
+Most ofthen will return a vector with DOUBLE-FLOAT elements or elements
+of the type of the first item in the list"
   (cond ((symbolp vector-type) (list->vector-method vector-type list))
         ((integerp vector-type) (list->vector-method 'integer list))
         ((floatp vector-type) (list->vector-method 'float list))
         ((vectorp vector-type) (list->vector-method 'vector list))
+        ((arrayp vector-type) (list->vector-method 'array list))
         (t (list->vector-method (type-of vector-type) list))))
 
 (defgeneric list->vector-method (vector-type list)
@@ -48,8 +51,6 @@ before applying REDUCING-FUNCTION"))
 (defgeneric outer-product (u v &optional buffer)
   (:documentation
    "Outer product of two vectors. If BUFFER is provided, result is placed there"))
-
-(defgeneric inner-product (u v))
 
 (defgeneric m* (A b &optional destination)
   (:documentation

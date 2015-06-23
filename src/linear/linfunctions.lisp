@@ -20,10 +20,15 @@
 
 ;; * DOT and NORM
 (defun dot (u v)
-  "Dot product of two vectors"
+  "Dot (inner)product of two vectors.
+This function is less strict on vector dimensions compared to INNER-PRODUCT and M*"
   (reduce-vector u #'+ 0.0d0
                  :mapping-function #'*
                  :other-vectors (list v)))
+
+(defun inner-product (u v &optional dest)
+  "Inner product of two vector objects"
+  (m* u v dest))
 
 (defvar *norm-type* 2
   "The type of norm to be used by NORM. Possible values:
@@ -144,3 +149,34 @@ NAME is used to generate a docstring"
 (define-vector-function tan)
 (define-vector-function exp)
 (define-vector-function signum)
+
+;; * Some odd ones
+(defun identity-matrix (n &optional (element-type 'double-float))
+  (if (zerop n)
+      (coerce 1 element-type)
+      (let ((a (make-array (list n n)
+                           :element-type element-type
+                           :initial-element 0.0d0)))
+        (loop for i below n
+           do (setf (aref a i i) 1.0d0))
+        a)))
+
+;; More criteria
+(defmethod compile-criterium ((type (eql :converged)) &rest args)
+  (let ((close-p (first args))
+        (info (second args)))
+    (in-criterium (x (last-v nil))
+      (let ((v (iterator:value x)))
+        (cond ((null last-v) (setf last-v (duplicate-vector v)))
+              ((funcall close-p last-v v)
+               (iterator:add-info (iterator:->finished x) :converged info))
+              (t (setf last-v (duplicate-vector v last-v))))))))
+
+;; TODO: Think how to improve it - don't want allocation in .-
+(defmethod compile-criterium ((type (eql :converged-norm)) &rest args)
+  (let ((tolerance (first args))
+        (info (second args)))
+    (compile-criterium :converged
+                       #'(lambda (x y) (< (norm (.- x y)) (* (norm x) tolerance)))
+                       (list :converged-norm info))))
+

@@ -7,23 +7,23 @@
 
 (test utils
   "Tests constants from MOBIUS.NUMERIC.UTILS"
-  (is (numberp +NAN+))
-  (is (and (not (= 1.0d0 +NAN+))
-           (not (> 1.0d0 +NAN+))
-           (not (< 1.0d0 +NAN+))))
-  (is (numberp ++INF+))
-  (is (> ++INF+ 1.0d20))
-  (is (num= 0.0d0 (/ ++INF+)))
-  (is (numberp +-INF+))
-  (is (< +-INF+ -1.0d20)))
+  (is (numberp not-a-number))
+  (is (and (not (= 1.0d0 not-a-number))
+           (not (> 1.0d0 not-a-number))
+           (not (< 1.0d0 not-a-number))))
+  (is (numberp +infinity))
+  (is (> +infinity 1.0d20))
+  (is (num= 0.0d0 (/ +infinity)))
+  (is (numberp -infinity))
+  (is (< -infinity -1.0d20)))
 
 
 (test iterator
   "MOBIUS.NUMERIC.ITERATOR"
   (let* ((x (iterator:continue 1.0d0))
-         (x-finished (iterator:to-finished! x))
-         (x-finished-new-value (iterator:replace-value! x 10.0d0)))
-    (is (iterator:finished? x))
+         (x-finished (iterator:->finished x))
+         (x-finished-new-value (iterator:replace-value x 10.0d0)))
+    (is (iterator:finished-p x))
     (is (= (iterator:value x)
            (iterator:value x-finished)
            (iterator:value x-finished-new-value)
@@ -40,7 +40,7 @@
              (declare (ignore buffer))
              (average x (/ value x))))
       (let ((result (fixed-point criteria #'improve init-guess nil nil)))
-        (is (iterator:finished? result))
+        (is (iterator:finished-p result))
         (is (num= (iterator:value result) 
                   (sqrt value)
                   1.0d-10))))))
@@ -48,6 +48,6 @@
 (defun run-base-suite ()
   (run! 'base-suite))
 
-;; (run! 'base-suite)
+(run! 'base-suite)
 
 

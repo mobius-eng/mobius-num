@@ -18,10 +18,13 @@
                 :initial-element (coerce 0 element-type))))
 
 (defmethod list->vector-method ((vector-type (eql 'vector)) list)
-  (make-array (length list)
-              :element-type 'double-float
-              :initial-contents (loop for x in list
-                                   collecting (coerce x 'double-float))))
+  (let ((element-type (type-of (first list)))
+        (length (length list)))
+    
+    (make-array length
+                :element-type element-type
+                :initial-contents (loop for x in list
+                                     collecting (coerce x element-type)))))
 
 ;; * Shape
 (defmethod vector-dim ((u vector))
@@ -34,8 +37,9 @@
 
 (defmethod map-vector ((vector vector) function
                        &key destination other-vectors with-indices)
-  (let ((w (or dest (make-array (array-dimension vector 0)
-                                :element-type (array-element-type vector)))))
+  (let ((w (or destination
+               (make-array (array-dimension vector 0)
+                           :element-type (array-element-type vector)))))
     (if with-indices
         (loop for i below (array-dimension vector 0)
            do (setf (aref w i)
@@ -63,8 +67,12 @@
                                     result
                                     (apply mapping-function
                                            (aref vector i)
-                                           (mapcar #f(aref % i) other-vectors))))
-          finally (return result)))))
+                                           (mapcar #f(aref % i) other-vectors)))))
+       (loop for i below n
+          do (setf result (funcall reducing-function
+                                   result
+                                   (aref vector i)))))
+   result))
 
 
 ;; * Vector arithemtic
@@ -77,8 +85,6 @@
         (loop for i below u-dim
            summing (* (aref u i) (aref v i)))
         (error "M* (VECTOR VECTOR): dimensions do not match"))))
-
-(defmethod inner-product ((u vector) (v vector)) (m* u v))
 
 (defmethod outer-product ((u vector) (v vector) &optional buffer)
   (let* ((n (array-dimension u 0))

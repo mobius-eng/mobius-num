@@ -42,7 +42,7 @@
   (status-p iterator :failed))
 
 (defun finished-p (iterator)
-  (staus-p iterator :finished))
+  (status-p iterator :finished))
 
 (defun add-info (iterator key more-info)
   (push (cons key more-info) (info iterator))

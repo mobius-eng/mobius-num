@@ -16,9 +16,19 @@
            #:m/
            #:transpose))
 
+(defpackage #:mobius.numeric.impl-numbers
+  (:use #:cl #:mobius.utils #:lingenerics))
+
+(defpackage #:mobius.numeric.impl-vectors
+  (:use #:cl #:mobius.utils #:lingenerics))
+
+(defpackage #:mobius.numeric.impl-arrays
+  (:use #:cl #:mobius.utils #:lingenerics))
+
 (defpackage #:mobius.numeric.linear-functions
   (:nicknames #:linfunctions)
   (:use #:cl #:lingenerics #:mobius.utils
+        #:criteria
         #:mobius.numeric.utils)
   (:export #:duplicate-vector
            #:negate-vector
@@ -36,27 +46,21 @@
            #:.abs  #:.sin  #:.cos  #:.tan  #:.exp  #:.signum
            #:.abs! #:.sin! #:.cos! #:.tan! #:.exp! #:.signum!))
 
-(defpackage #:mobius.numeric.impl-numbers
-  (:use #:cl #:mobius.utils #:lingenerics))
-
-(defpackage #:mobius.numeric.impl-vectors
-  (:use #:cl #:mobius.utils #:lingenerics))
-
-(defpackage #:mobius.numeric.impl-arrays
-  (:use #:cl #:mobius.utils #:lingenerics))
-
-
 (defpackage #:mobius.numeric.bicg-stab
   (:nicknames #:bicgstab)
-  (:use #:cl #:linop #:mobius.numeric.fixed-point #:criteria)
+  (:use #:cl #:lingenerics #:linfunctions #:fixed-point #:criteria)
   (:export #:*bicgstab-criteria*
+           #:make-bicgstab-method
            #:bicgstab)
   (:documentation "BiCGStab linear solver for a generalised linear operator"))
 
 (defpackage #:mobius.numeric.mvector
   (:nicknames #:mv)
-  (:use #:cl #:mobius.utils
-        #:linop
+  (:use #:cl
+        #:mobius.utils
+        #:criteria
+        #:lingenerics
+        #:linfunctions
         #:bicgstab)
   (:import-from #:alexandria #:with-gensyms)
   (:import-from #:cl-num-utils #:num= #:*num=-tolerance*)
@@ -70,11 +74,11 @@
            #:delta-mvector  #:delta-up  #:delta-down
            #:copy-mvector
            #:mvref
-           #:mvector?
-           #:column? #:up?
-           #:row?    #:down?
+           #:mvector-p
+           #:column-p #:up-p
+           #:row-p    #:down-p
            #:mvlength
-           #:comaptible?
+           #:comaptible-p
            #:incompatible-mvector-size
            #:throw-incompatible-mvector-size
            #:down-index #:down-index!

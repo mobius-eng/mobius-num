@@ -34,12 +34,16 @@
   (:nicknames #:criteria)
   (:import-from #:alexandria #:plist-alist)
   (:export #:make-criteria
+           #:get-criteria-function
            #:add-to-criteria
            #:delete-from-criteria
+           #:criterium-arguments
            #:compile-criterium
            #:in-criterium))
 
 (defpackage #:mobius.numeric.fixed-point
+  (:nicknames #:fixed-point)
   (:use #:cl #:criteria)
+  (:import-from #:alexandria #:circular-list)
   (:export #:fixed-point))
 

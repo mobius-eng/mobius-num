@@ -13,17 +13,19 @@
 
 (defun build-criteria-function (criteria-list)
   (let ((all-criteria (mapcar #'(lambda (entry)
-                                  (apply #'compile-criterium (car entry) (cdr entry)))
+                                  #'(lambda () (apply #'compile-criterium entry)))
                               criteria-list)))
-    #'(lambda (x)
-        (let ((y (iterator:continue x)))
-          (loop for c in all-criteria
-             if (iterator:continue-p y)
-             do (setf y (funcall c y))
-             else
-             return y
-             end
-             finally (return y))))))
+    #'(lambda ()
+        (let ((all-criteria (mapcar #'(lambda (c) (funcall c)) all-criteria)))
+          #'(lambda (x)
+              (let ((y (iterator:continue x)))
+                (loop for c in all-criteria
+                   if (iterator:continue-p y)
+                   do (setf y (funcall c y))
+                   else
+                   return y
+                   end
+                   finally (return y))))))))
 
 (defun make-criteria (&rest entries)
   (let* ((list (mapcar #'(lambda (entry)
@@ -38,6 +40,10 @@
           (build-criteria-function (slot-value criteria 'list)))
     criteria))
 
+(defun get-criteria-function (criteria)
+  (declare (type criteria criteria))
+  (funcall (slot-value criteria 'function)))
+
 (defun add-to-criteria (criteria id new-criterium)
   (push (cons id new-criterium) (slot-value criteria 'list))
   (setf (slot-value criteria 'function)
@@ -50,6 +56,11 @@
   (setf (slot-value criteria 'function)
           (build-criteria-function (slot-value criteria 'list)))
   criteria)
+
+(defun criterium-arguments (criteria id)
+  (declare (type criteria criteria))
+  (let ((pair (assoc id (slot-value criteria 'list) :test 'eq)))
+    (and pair (cdr pair))))
 
 (defmacro in-criterium ((x &rest init) &body body)
   (if init
