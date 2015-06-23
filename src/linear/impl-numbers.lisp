@@ -21,11 +21,12 @@
   (declare (ignore u))
   0)
 ;; ** Mapping
-(defmethod map-vector ((u number) f &key destination other-vectors with-indices)
-  (declare (ignore dest))
+(defmethod map-vector ((vector number) function
+                       &key destination other-vectors with-indices)
+  (declare (ignore destination))
   (if with-indices
-      (apply f 0 u other-vectors)
-      (apply f u other-vectors)))
+      (apply function 0 vector other-vectors)
+      (apply function vector other-vectors)))
 
 (defmethod reduce-vector ((vector number) reducing-function initial-value
                           &key mapping-function other-vectors)
@@ -46,8 +47,7 @@
   (declare (ignore buffer))
   (* u v))
 
-(defmethod inner-product ((u number) (v number) &optional buffer)
-  (declare (ignore buffer))
+(defmethod inner-product ((u number) (v number))
   (* u v))
 
 

@@ -10,6 +10,8 @@
     (with-slots (status value info) obj
      (format out "~A ~A  Info: ~A" status value info))))
 
+(defun iterator-p (obj) (typep obj 'iterator))
+
 (defun continue (val &optional info)
   (make-instance 'iterator
                  :status :continue
@@ -28,33 +30,32 @@
                  :value val
                  :info info))
 
-(defun continue? (iterator)
-  (eq (status iterator) :continue))
 
-(defun failed? (iterator)
-  (eq (status iterator) :failed))
+(declaim (inline status-p))
+(defun status-p (obj status)
+  (and (iterator-p obj) (eq (slot-value obj 'status) status)))
 
-(defun finished? (iterator)
-  (eq (status iterator) :finished))
+(defun continue-p (iterator)
+  (status-p iterator :continue))
 
-(defun update-info (iterator new-info)
-  (make-instance 'iterator
-                 :status (status iterator)
-                 :value (value iterator)
-                 :info new-info))
+(defun failed-p (iterator)
+  (status-p iterator :failed))
 
-(defun add-info! (iterator key more-info)
+(defun finished-p (iterator)
+  (staus-p iterator :finished))
+
+(defun add-info (iterator key more-info)
   (push (cons key more-info) (info iterator))
   iterator)
 
-(defun change-status! (iterator new-status)
+(defun change-status (iterator new-status)
   (setf (status iterator) new-status)
   iterator)
 
-(defun to-continue! (iterator) (change-status! iterator :continue))
-(defun to-failed! (iterator) (change-status! iterator :failed))
-(defun to-finished! (iterator) (change-status! iterator :finished))
+(defun ->continue (iterator) (change-status iterator :continue))
+(defun ->failed (iterator) (change-status iterator :failed))
+(defun ->finished (iterator) (change-status iterator :finished))
 
-(defun replace-value! (iterator new-value)
+(defun replace-value (iterator new-value)
   (setf (value iterator) new-value)
   iterator)

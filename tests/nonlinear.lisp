@@ -13,7 +13,9 @@
       (is (<= (abs fx) 1.0d-9))
       (is (num= x 1.0d0)))))
 
+(run! 'nonlinear-scalar)
 
+;; this example breaks with BiCGSTAB: need good preconditioner.
 (test nonlinear-vector
   (let ((f #'(lambda (v buf)
                (let ((x (mvref v 0))
@@ -49,13 +51,30 @@
                                                :df df
                                                :df-tmp df-buf
                                                :lin-solver #'(lambda (A b &optional x0 x)
-                                                               (declare (ignore x0 x))
-                                                               (lla:solve A b)))
+                                                               ;(declare (ignore x0 x))
+                                                               (m/ A b x0 x))
+                                               :criteria (make-criteria
+                                                          :converged-fsolve 1.0d-6
+                                                          :limit-iterations 20
+                                                          :log-value
+                                                          #f(format t
+                                                                    "~&Nonlinear = ~A~%"
+                                                                    %)))
       (is (eq status :FINISHED))
       (is (< (norm fx) 1.0d-7))
       (is (num= exact-solution x)))))
 
+(use-package 'criteria)
+(let ((*bicgstab-criteria* (make-criteria
+                            :bicg-small-residual 1.0d-9
+                            :limit-iterations 20
+                            :log-value #f(format t "~&Approximation = ~A~%" %))))
+ (run! 'nonlinear-vector))
 
-(run! 'nonlinear-vector)
+
+;; last Dx
+;; (UP -2.024369688332788d-6 1.3771500952312096d-4 3.6902088330656984d-5)
+;; (UP -3.291614049084749d-5 0.01665810079725665d0 0.003753565106635637d)
+
 
 

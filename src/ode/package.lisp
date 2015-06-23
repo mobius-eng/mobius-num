@@ -2,8 +2,9 @@
 
 (defpackage mobius.numeric.ode
   (:nicknames #:ode)
-  (:use #:cl #:mobius.utils #:linop #:mobius.numeric.utils)
+  (:use #:cl #:mobius.utils #:linop #:mobius.numeric.utils #:criteria)
   (:import-from #:cl-num-utils #:num=)
+  (:import-from #:alexandria #:with-gensyms)
   (:export #:ode
            #:make-ode
            #:init-ode
@@ -29,7 +30,8 @@
   (:nicknames #:cn #:rk2imp)
   (:use #:cl #:mobius.utils #:linop #:mobius.numeric.fsolve
         #:mobius.numeric.utils #:ode
-        #:mobius.numeric.fixed-point)
+        #:mobius.numeric.fixed-point
+        #:criteria)
   (:import-from #:cl-num-utils #:num=)
   (:export #:make-crank-nicolson-method
            #:*crank-nicolson-solver-criteria*))

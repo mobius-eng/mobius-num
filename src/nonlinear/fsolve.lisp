@@ -1,9 +1,19 @@
 (in-package mobius.numeric.fsolve)
 
+(defmethod compile-criterium ((type (eql :converged-fsolve)) &rest args)
+  (let ((tolerance (first args)))
+    (compile-criterium :converged
+                       #'(lambda (x y)
+                           (let ((x (cadr x))
+                                 (y (cadr y)))
+                             (<= (norm (e- x y)) (* tolerance (norm x)))))
+                       "FSOLVE: converged")))
+
 (defun fsolve (f x0 &key
                       (simple-function t)
-                      (criteria (criteria:make (criteria:converged #'num=)
-                                               (criteria:limit-iterations 20)))
+                      (criteria (make-criteria
+                                 :converged-fsolve 1.0d-9
+                                 :limit-iterations 20))
                       df
                       (df-tmp (outer-product x0 x0))
                       (lin-solver #'m/))
@@ -23,13 +33,10 @@ Arguments list:
                     and Y is the buffer for the solution (memory optimisation)
 Returns multiple values : solution xsol, value of f(xsol) and convergence status"
   (let* ((f (if simple-function
-                #'(lambda (x tmp)
-                    (declare (ignore tmp))
-                    (funcall f x))
+                #'(lambda (x tmp) (declare (ignore tmp)) (funcall f x))
                 f))
-         (df (cond ((and df simple-function) (lambda (x buffer)
-                                               (declare (ignore buffer))
-                                               (funcall df x)))
+         (df (cond ((and df simple-function)
+                    #'(lambda (x buffer) (declare (ignore buffer)) (funcall df x)))
                    (df df)
                    (t (deriv f)))))
     (let ((y (newton-method criteria lin-solver f df x0 df-tmp)))

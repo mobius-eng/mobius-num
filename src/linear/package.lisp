@@ -1,55 +1,55 @@
 (in-package cl-user)
 
-(defpackage #:mobius.numeric.linear-operations
-  (:nicknames #:linop)
-  (:use #:cl #:mobius.utils #:mobius.numeric.utils)
-  (:import-from #:alexandria #:with-gensyms)
+(defpackage #:mobius.numeric.linear-generics
+  (:nicknames #:lingenerics)
+  (:use #:cl)
   (:import-from #:cl-num-utils #:transpose)
-  (:export #:zero-vector #:zero-vector!
+  (:export #:zero-vector
            #:make-vector
+           #:list->vector #:list->vector-method
            #:vector-dim
-           #:map-vector #:map-vector!
-           #:mapi-vector #:mapi-vector!
+           #:map-vector
            #:reduce-vector
-           #:dot
            #:outer-product
+           #:inner-product
            #:m*
            #:m/
-           #:transpose
-           #:duplicate-vector
-           #:negate-vector #:negate-vector!
-           #:*norm-type*
+           #:transpose))
+
+(defpackage #:mobius.numeric.linear-functions
+  (:nicknames #:linfunctions)
+  (:use #:cl #:lingenerics #:mobius.utils
+        #:mobius.numeric.utils)
+  (:export #:duplicate-vector
+           #:negate-vector
+           #:one-vector
+           #:dot
+           #:squared-l2-norm
            #:norm
-           #:e+ #:e=+! #:e+!
-           #:e- #:e=-! #:e-!
-           #:e* #:e=*! #:e*!
-           #:e/ #:e=/! #:e/!
-           #:e-rev/ #:e=-rev/! #:e-rev/!
-           #:inner-product
-           #:identity-matrix
-           #:eabs #:esin #:ecos #:etan #:esignum #:eexp
-           #:eabs! #:esin! #:ecos! #:etan! #:esignum! :eexp!
-           #:define-vector-function)
-  (:documentation "Definitions of generic linear operations"))
+           #:*norm-type*
+           #:.+ #:.+! #:.=+!
+           #:.- #:.-! #:.=-!
+           #:.* #:.*! #:.=*!
+           #:./ #:./! #:.=/!
+           #:.rev/ #:.rev/! #:.=rev/!
+           #:define-vector-function
+           #:.abs  #:.sin  #:.cos  #:.tan  #:.exp  #:.signum
+           #:.abs! #:.sin! #:.cos! #:.tan! #:.exp! #:.signum!))
 
-(defpackage #:mobius.numeric.linear-operations-numbers
-  (:use #:cl #:mobius.utils #:linop)
-  (:import-from #:alexandria #:with-gensyms)
-  (:documentation "Implementation of linear oprations for numbers"))
+(defpackage #:mobius.numeric.impl-numbers
+  (:use #:cl #:mobius.utils #:lingenerics))
 
+(defpackage #:mobius.numeric.impl-vectors
+  (:use #:cl #:mobius.utils #:lingenerics))
 
-(defpackage #:mobius.numeric.linear-operations-arrays
-  (:use #:cl #:mobius.utils #:linop)
-  (:import-from #:alexandria #:with-gensyms)
-  (:import-from #:cl-num-utils #:transpose)
-  (:documentation "Implementations of linear operations for numbers and arrays"))
+(defpackage #:mobius.numeric.impl-arrays
+  (:use #:cl #:mobius.utils #:lingenerics))
+
 
 (defpackage #:mobius.numeric.bicg-stab
   (:nicknames #:bicgstab)
-  (:use #:cl #:linop #:mobius.numeric.fixed-point)
-  (:import-from #:alexandria #:with-gensyms)
-  (:export #:*bicgstab-tolerance*
-           #:*bicgstab-max-iterations*
+  (:use #:cl #:linop #:mobius.numeric.fixed-point #:criteria)
+  (:export #:*bicgstab-criteria*
            #:bicgstab)
   (:documentation "BiCGStab linear solver for a generalised linear operator"))
 

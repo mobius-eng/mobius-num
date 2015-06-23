@@ -113,9 +113,10 @@
     (let ((x (m/ A b x0 x)))
       (is (num= (m* A x) b)))))
 
-(run! 'linear-sparse-bicg)
+;; (run! 'linear-sparse-bicg)
 
 
 (defun run-linear-suite ()
   (run! 'linear-suite))
 
+(run! 'linear-suite)

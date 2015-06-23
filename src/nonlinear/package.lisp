@@ -2,7 +2,7 @@
 
 (defpackage #:mobius.numeric.newton-raphson
   (:nicknames #:newton)
-  (:use #:cl #:mobius.utils #:linop #:mobius.numeric.fixed-point)
+  (:use #:cl #:mobius.utils #:linop #:mobius.numeric.fixed-point #:criteria)
   (:export #:newton-method))
 
 (defpackage #:mobius.numeric.diff
@@ -15,6 +15,7 @@
   (:use #:cl
         #:newton
         #:linop
-        #:mobius.numeric.diff)
+        #:mobius.numeric.diff
+        #:criteria)
   (:import-from #:cl-num-utils #:num=)
   (:export #:fsolve))

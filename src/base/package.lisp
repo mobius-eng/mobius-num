@@ -1,14 +1,15 @@
 (in-package cl-user)
 
+(defpackage #:mobius.numeric.utils
+  (:nicknames #:numeric-utils)
+  (:use #:cl)
+  (:export #:+infinity
+           #:-infinity
+           #:not-a-number))
+
+
 ;; have to by-pass the lock on CONTINUE
 ;; do not import: use it with ITERATOR: prefix
-(defpackage #:mobius.numeric.utils
-  (:use #:cl)
-  (:export #:+NAN+
-           #:++INF+
-           #:+-INF+))
-
-
 (defpackage #:mobius.numeric.iterator
   (:use #:cl)
   (:nicknames #:iterator)
@@ -19,30 +20,26 @@
            #:status
            #:value
            #:info
-           #:continue?
-           #:finished?
-           #:failed?
-           #:update-info
-           #:add-info!
-           #:to-continue!
-           #:to-failed!
-           #:to-finished!
-           #:replace-value!))
+           #:continue-p
+           #:finished-p
+           #:failed-p
+           #:add-info
+           #:->continue
+           #:->failed
+           #:->finished
+           #:replace-value))
 
 (defpackage #:mobius.numeric.criteria
   (:use #:cl)
   (:nicknames #:criteria)
-  (:export #:make
-           #:define-criterium
-           #:finished-value
-           #:failed-value
-           #:log-value
-           #:converged
-           #:limit-iterations
-           #:modify-value
-           #:build))
+  (:import-from #:alexandria #:plist-alist)
+  (:export #:make-criteria
+           #:add-to-criteria
+           #:delete-from-criteria
+           #:compile-criterium
+           #:in-criterium))
 
 (defpackage #:mobius.numeric.fixed-point
-  (:use #:cl)
+  (:use #:cl #:criteria)
   (:export #:fixed-point))
 

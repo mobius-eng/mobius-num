@@ -31,9 +31,9 @@
 
 (test fixed-point
   "Test FIXED-POINT on finding SQRT of a number"
-  (let ((criteria (criteria:make (criteria:converged
-                                  #'(lambda (x y) (< (abs (- x y)) 1.0d-12)))
-                                 (criteria:limit-iterations 100)))
+  (let ((criteria (make-criteria
+                   :converged-norm 1.0d-12
+                   :limit-iterations 100))
         (init-guess 1.0d0)
         (value 3.0d0))
     (flet ((improve (x buffer)
@@ -47,5 +47,7 @@
 
 (defun run-base-suite ()
   (run! 'base-suite))
+
+;; (run! 'base-suite)
 
 

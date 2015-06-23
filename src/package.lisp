@@ -4,7 +4,9 @@
 (defpackage #:mobius.numeric
   (:use #:cl
         #:mobius.numeric.utils
+        #:criteria
         #:linop
+        #:bicgstab
         #:mobius.numeric.fsolve
         #:mv
         #:ode
@@ -20,6 +22,8 @@
    #:++INF+
    #:+-INF+
    #:+NAN+
+   ;; Criteria
+   #:make-criteria
    ;; Linear operations
    #:vector-dim
    #:norm
@@ -44,6 +48,9 @@
    #:eabs #:esin #:ecos #:etan #:eexp #:esignum
    #:eabs! #:esin! #:ecos! #:etan! #:eexp! #:esignum!
    #:define-vector-function
+   ;; BICGSTAB
+   #:bicgstab
+   #:*bicgstab-criteria*
    ;; MVECTOR
    #:mvector #:up #:down
    #:mvector-index-type

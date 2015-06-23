@@ -2,7 +2,10 @@
 
 (defpackage #:mobius.numeric.tests.base
   (:nicknames #:num-tests-base)
-  (:use #:cl #:mobius.numeric #:mobius.numeric.fixed-point #:it.bese.fiveam)
+  (:use #:cl
+        #:mobius.numeric
+        #:mobius.numeric.fixed-point
+        #:it.bese.fiveam)
   (:import-from #:mobius.utils #:average #:%))
 
 

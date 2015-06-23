@@ -177,6 +177,9 @@ except for index, which has a provided value"
 (defmethod make-vector ((u mvector) n)
   (zero-mvector (mvector-index-type u) n))
 
+(defmethod list->vector-method ((vector-type (eql 'mvector)) list)
+  (apply #'up list))
+
 ;; *** Shape
 (defmethod vector-dim ((u mvector)) (mvlength u))
 
