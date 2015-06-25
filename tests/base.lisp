@@ -32,7 +32,7 @@
 (test fixed-point
   "Test FIXED-POINT on finding SQRT of a number"
   (let ((criteria (make-criteria
-                   :converged-norm 1.0d-12
+                   :converged-numbers '(1.0d-12 1.0d0 "Solved")
                    :limit-iterations 100))
         (init-guess 1.0d0)
         (value 3.0d0))

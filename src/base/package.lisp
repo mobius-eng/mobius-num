@@ -1,12 +1,12 @@
 (in-package cl-user)
 
-(defpackage #:mobius.numeric.utils
-  (:nicknames #:numeric-utils)
-  (:use #:cl)
+(defpackage #:mobius.numeric.constants
+  (:nicknames #:numeric-constants)
+  (:use #:cl #:gsl)
   (:export #:+infinity
            #:-infinity
-           #:not-a-number))
-
+           #:not-a-number
+           #:real #:sb32 #:sb64 #:ub32 #:ub64))
 
 ;; have to by-pass the lock on CONTINUE
 ;; do not import: use it with ITERATOR: prefix

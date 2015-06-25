@@ -12,7 +12,7 @@
                               "base"
                               :serial t
                               :components ((:file "package")
-                                           (:file "utils")
+                                           (:file "constants")
                                            (:file "iterator")
                                            (:file "criteria")
                                            (:file "fixed-point")))
@@ -20,12 +20,13 @@
                               "linear"
                               :serial t
                               :components ((:file "package")
-                                           (:file "lingenerics")
-                                           (:file "impl-numbers")
-                                           (:file "impl-vectors")
-                                           (:file "impl-arrays")
-                                           (:file "linfunctions")
-                                           (:file "bicg-stab")
+                                           (:file "gsl-linear")
+                                           ;; (:file "lingenerics")
+                                           ;; (:file "impl-numbers")
+                                           ;; (:file "impl-vectors")
+                                           ;; (:file "impl-arrays")
+                                           ;; (:file "linfunctions")
+                                           ;; (:file "bicg-stab")
                                            ;; (:file "mvector")
                                            ))
                              ;; (:module

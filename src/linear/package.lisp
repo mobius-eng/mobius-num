@@ -1,87 +1,33 @@
 (in-package cl-user)
 
-(defpackage #:mobius.numeric.linear-generics
-  (:nicknames #:lingenerics)
-  (:use #:cl)
-  (:import-from #:cl-num-utils #:transpose)
+(defpackage #:mobius.numeric.linear
+  (:nicknames #:numeric-linear)
+  (:use #:cl #:gsl #:numeric-constants #:criteria)
+  (:import-from #:cl-num-utils #:num=)
   (:export #:zero-vector
+           #:copy-vector
            #:make-vector
-           #:list->vector #:list->vector-method
-           #:vector-dim
-           #:map-vector
-           #:reduce-vector
-           #:outer-product
-           #:inner-product
-           #:m*
-           #:m/
-           #:transpose))
-
-(defpackage #:mobius.numeric.impl-numbers
-  (:use #:cl #:mobius.utils #:lingenerics))
-
-(defpackage #:mobius.numeric.impl-vectors
-  (:use #:cl #:mobius.utils #:lingenerics))
-
-(defpackage #:mobius.numeric.impl-arrays
-  (:use #:cl #:mobius.utils #:lingenerics))
-
-(defpackage #:mobius.numeric.linear-functions
-  (:nicknames #:linfunctions)
-  (:use #:cl #:lingenerics #:mobius.utils
-        #:criteria
-        #:mobius.numeric.utils)
-  (:export #:duplicate-vector
+           #:list->vector
+           #:vector-of
+           #:dfvec
+           #:sb64vec
            #:negate-vector
-           #:one-vector
+           #:vector-dim
            #:dot
            #:squared-l2-norm
            #:norm
            #:*norm-type*
-           #:.+ #:.+! #:.=+!
-           #:.- #:.-! #:.=-!
-           #:.* #:.*! #:.=*!
-           #:./ #:./! #:.=/!
-           #:.rev/ #:.rev/! #:.=rev/!
-           #:define-vector-function
-           #:.abs  #:.sin  #:.cos  #:.tan  #:.exp  #:.signum
-           #:.abs! #:.sin! #:.cos! #:.tan! #:.exp! #:.signum!))
-
-(defpackage #:mobius.numeric.bicg-stab
-  (:nicknames #:bicgstab)
-  (:use #:cl #:lingenerics #:linfunctions #:fixed-point #:criteria)
-  (:export #:*bicgstab-criteria*
-           #:make-bicgstab-method
-           #:bicgstab)
-  (:documentation "BiCGStab linear solver for a generalised linear operator"))
-
-(defpackage #:mobius.numeric.mvector
-  (:nicknames #:mv)
-  (:use #:cl
-        #:mobius.utils
-        #:criteria
-        #:lingenerics
-        #:linfunctions
-        #:bicgstab)
-  (:import-from #:alexandria #:with-gensyms)
-  (:import-from #:cl-num-utils #:num= #:*num=-tolerance*)
-  (:import-from #:lla #:mm)
-  (:export #:mvector #:up #:down
-           #:mvector-index-type #:mvector-datum
-           #:array->mvector #:array->up #:array->down
-           #:const-mvector  #:const-up  #:const-down
-           #:zero-mvector   #:zero-up   #:zero-down
-           #:build-mvector  #:build-up  #:build-down
-           #:delta-mvector  #:delta-up  #:delta-down
-           #:copy-mvector
-           #:mvref
-           #:mvector-p
-           #:column-p #:up-p
-           #:row-p    #:down-p
-           #:mvlength
-           #:comaptible-p
-           #:incompatible-mvector-size
-           #:throw-incompatible-mvector-size
-           #:down-index #:down-index!
-           #:up-index   #:up-index!)
-  (:documentation "M(athematical) VECTOR implementation"))
+           #:reduce-vector
+           #:.abs  #:.sin  #:.cos  #:.tan  #:.exp  #:.log  #:.signum
+           #:.abs! #:.sin! #:.cos! #:.tan! #:.exp! #:.log! #:.signum!
+           #:elementwise!
+           #:.=+! #:.=-! #:.=*! #:.=/!
+           #:.+   #:.-   #:.*   #:./
+           #:.+!  #:.-!  #:.*!  #:./!
+           #:list->matrix
+           #:make-matrix
+           #:matrix-of
+           #:identity-matrix
+           #:m*
+           #:m/))
 

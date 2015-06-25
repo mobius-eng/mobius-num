@@ -3,11 +3,9 @@
 (defpackage #:mobius.numeric.tests.base
   (:nicknames #:num-tests-base)
   (:use #:cl
-        #:mobius.numeric.utils
+        #:numeric-constants
         #:criteria
         #:fixed-point
-        #:lingenerics
-        #:linfunctions
         #:mobius.numeric.fixed-point
         #:it.bese.fiveam)
   (:import-from #:mobius.utils #:average #:%)
@@ -17,11 +15,9 @@
 (defpackage #:mobius.numeric.tests.linear
   (:nicknames #:num-tests-linear)
   (:use #:cl
-        #:mobius.numeric.utils
-        #:lingenerics
-        #:linfunctions
+        #:numeric-constants
+        #:numeric-linear
         #:criteria
-        #:bicgstab
         #:it.bese.fiveam)
   (:import-from #:mobius.utils #:%)
   (:import-from #:cl-num-utils #:num=))
