@@ -53,7 +53,13 @@ VECTOR and DESTINATION can be the same, in which case destructively negates VECT
   "Find VECTOR's dimension (count)"
   (first (grid:dimensions vector)))
 
-(defun m* (A b &optional destination)
+(defgeneric m* (A b &optional destination)
+  (:documentation
+   "Returns the application of the linear operator A to vector B, use DESTINATION to
+store the result if provided"))
+
+(defmethod m* ((A grid:matrix-double-float) (b grid:vector-double-float)
+               &optional destination)
   "Matrix multiplication: simplified version of MATRIX-PRODUCT.
 Returns the product of A and B, use DESTINATION for the result if provided"
   (unless destination
@@ -330,3 +336,28 @@ Stores the result in DESTINATION"
                                      :other-vectors (list b))
                       (/ *norm-type*))))
        tolerance)))
+
+
+(defgeneric linear-solve (method A b &optional x x0)
+  (:documentation "Solve linear equation Ax=b using METHOD and initial approximation X0"))
+
+(defclass lu-solver ()
+  ((work-matrix :initarg :work-matrix :accessor lu-work-matrix)
+   (permutation :initarg :permutation :accessor lu-permutation)
+   (problem-size :initarg :problem-size :accessor lu-problem-size)))
+
+(defun make-lu-solver (seed)
+  (let ((n (vector-dim seed))
+        (element-type (grid:element-type seed)))
+    (let ((matrix (make-matrix element-type (list n n)))
+          (permutation (make-permutation n)))
+      (make-instance 'lu-solver
+                     :work-matrix matrix
+                     :permutation permutation
+                     :problem-size n))))
+
+(defmethod linear-solve ((method (eql 'lu)) A b &optional x x0)
+  (assert (= (slot-value method 'problem-size) (vector-dim b)) ()
+          "LINEAR-SOLVE (LU): method and vector size do not match")
+  (declare (ignore x0))
+  (m/ A b x (slot-value method 'work-matrix) (slot-value method 'permutation)))
