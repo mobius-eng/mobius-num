@@ -4,7 +4,9 @@
   :author "Alexey Cherkaev <Alexey.Cherkaev@gmail.com>"
   :license "LGPLv.3"
   :version "0.0.1"
-  :depends-on (#:mobius-utils #:alexandria #:cl-num-utils #:lla)
+  :depends-on (#:mobius-utils #:alexandria #:cl-num-utils
+                              #:lla #:gsll   ;; try to remove from deps
+                              )
   :components ((:module
                 "src"
                 :serial t
@@ -16,19 +18,19 @@
                                            (:file "iterator")
                                            (:file "criteria")
                                            (:file "fixed-point")))
-                             (:module
-                              "linear"
-                              :serial t
-                              :components ((:file "package")
-                                           (:file "gsl-linear")
-                                           ;; (:file "lingenerics")
-                                           ;; (:file "impl-numbers")
-                                           ;; (:file "impl-vectors")
-                                           ;; (:file "impl-arrays")
-                                           ;; (:file "linfunctions")
-                                           ;; (:file "bicg-stab")
-                                           ;; (:file "mvector")
-                                           ))
+                             ;; (:module
+                             ;;  "linear"
+                             ;;  :serial t
+                             ;;  :components ((:file "package")
+                             ;;               ;; (:file "gsl-linear")
+                             ;;               ;; (:file "lingenerics")
+                             ;;               ;; (:file "impl-numbers")
+                             ;;               ;; (:file "impl-vectors")
+                             ;;               ;; (:file "impl-arrays")
+                             ;;               ;; (:file "linfunctions")
+                             ;;               ;; (:file "bicg-stab")
+                             ;;               ;; (:file "mvector")
+                             ;;               ))
                              ;; (:module
                              ;;  "nonlinear"
                              ;;  :serial t

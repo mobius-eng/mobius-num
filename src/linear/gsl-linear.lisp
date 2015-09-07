@@ -357,7 +357,7 @@ Stores the result in DESTINATION"
                      :problem-size n))))
 
 (defmethod linear-solve ((method (eql 'lu)) A b &optional x x0)
+  (declare (ignore x0))
   (assert (= (slot-value method 'problem-size) (vector-dim b)) ()
           "LINEAR-SOLVE (LU): method and vector size do not match")
-  (declare (ignore x0))
   (m/ A b x (slot-value method 'work-matrix) (slot-value method 'permutation)))

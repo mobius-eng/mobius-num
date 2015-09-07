@@ -8,10 +8,10 @@ previous values might be destroyed.
 Function F must accept two arguments: x and the buffer for the result;
 it returns f(x)"
   (let ((tmps (circular-list tmp1 tmp2))
-        (criteria-function (get-criteria-function criteria)))
+        (criteria-function (criteria-function criteria)))
     (loop for tmp in tmps
-       for x = x0 then (funcall f (iterator:value y) tmp)
-       for y = (funcall criteria-function x0) then (funcall criteria-function x)
-       unless (iterator:continue-p y)
-       return y
-       end)))
+          for x = x0 then (funcall f (iterator:value y) tmp)
+          for y = (funcall criteria-function x0) then (funcall criteria-function x)
+          unless (iterator:continue-p y)
+            return (values y criteria)
+          end)))

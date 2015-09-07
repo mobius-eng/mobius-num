@@ -2,11 +2,12 @@
 
 (defpackage #:mobius.numeric.constants
   (:nicknames #:numeric-constants)
-  (:use #:cl #:gsl)
+  (:use #:cl)
   (:export #:+infinity
            #:-infinity
            #:not-a-number
-           #:real #:sb32 #:sb64 #:ub32 #:ub64))
+           #:infinity-p
+           #:not-a-number-p))
 
 ;; have to by-pass the lock on CONTINUE
 ;; do not import: use it with ITERATOR: prefix
@@ -33,13 +34,20 @@
   (:use #:cl)
   (:nicknames #:criteria)
   (:import-from #:alexandria #:plist-alist)
-  (:export #:make-criteria
-           #:get-criteria-function
-           #:add-to-criteria
-           #:delete-from-criteria
-           #:criterium-arguments
-           #:compile-criterium
-           #:in-criterium))
+  (:export #:base-criterium
+           #:criterium-info
+           #:criterium-function
+           #:make-criterium
+           #:finished-value-criterium
+           #:failed-value-criterium
+           #:log-criterium
+           #:limit-iter-criterium
+           #:modify-value-criterium
+           #:make-criteria
+           #:criteria-function
+           #:criteria-seq
+           #:croteria-list
+           #:criteria))
 
 (defpackage #:mobius.numeric.fixed-point
   (:nicknames #:fixed-point)
