@@ -39,9 +39,9 @@
   (newton-value-f val))
 
 (defmethod print-object ((obj newton-value) out)
-  (with-slots (newton-value-x newton-value-f) obj
+  (with-slots (newton-value-x newton-value-f newton-value-g0) obj
     (print-unreadable-object (obj out :type t)
-     (format out "x = ~A f(x) = ~A" newton-value-x newton-value-f))))
+     (format out "x = ~A f(x) = ~A g(x) = ~F" newton-value-x newton-value-f newton-value-g0))))
 
 ;; ** Control
 (defvar *newton-tolerance* 1d-8)
@@ -95,7 +95,7 @@
     :value (make-newton-value size)
     :linear-solver linear-solver
     :df->x (make-vector size)
-    :newton-tmp-x (make-vector size 'double-float)
+    :tmp-x (make-vector size 'double-float)
     :control (make-newton-control tolerance max-iterations other-controls)
     :linsearch (make-linsearch)))
 
@@ -106,70 +106,70 @@
     :initarg :info
     :reader linear-solver-failed-info)))
 
-;; TODO: might be different after LINSEARCH
-(defun update-value! (val f)
-  (add-with-multipliers! (newton-value-x val) (cons -1.0d0 (newton-value-dir val)))
-  (copy-vector-to! (funcall f (newton-value-x val)) (newton-value-f val)))
 
+(define-condition linsearch-failed (error)
+  ((linsearch-failed-value
+    :initarg :value
+    :reader linsearch-failed-value)))
+
+
+;; ** Newton step (globally convergent)
 (defun make-newton-step (method f)
   (declare (type newton method))
-  (let (f-tmp-value)
-    (lambda (value)
-      (declare (type newton-value value))
-      (flet ((linsearch-g (lmbda)
-               (linear-combination!
-                0d0
-                (newton-tmp-x method)
-                (cond 1d0 (newton-value-x value))
-                (cons lmbda (newton-value-dir value)))
-               (setf f-tmp-value (funcall f (newton-tmp-x method)))
-               (* 0.5d0 (square-vector f-tmp-value)))
-             (df-fun (y b)
-               (jacobian*vector-save f
-                                     (newton-value-x value)
-                                     y
-                                     (newton-df->x method)
-                                     b)))
-        (copy-vector-to! (newton-value-x value) (newton-value-dir value))
-        (multiple-value-bind (solution successful-p info)
-            (solve-linear (newton-linear-solver method)
-                          #'df-fun
-                          (newton-value-f value)
-                          (newton-value-dir value))
-          (if successful-p
-              (let ((g1 (linsearch-g 1d0))
-                    (linsearch-result (linsearch (newton-value-linsearch value)
-                                                 #'linsearch-g
-                                                 (newton-value-g0 value)
-                                                 (newton-value-Dg0 value)
-                                                 g1
-                                                 #'newton-step-gamma)))
-                (cond ((iterator:finished-p linsearch-result)
-                       (let ((linsearch-value (iterator:value linsearch-result)))
-                         (let ((lmbda (linsearch-value-lambda1 linsearch-value))
-                               (g1 (linsearch-value-g1 linsearch-value)))
-                           ;; NEWTON-TMP-X must contain last x + lambda * p
-                           (copy-vector-to! (newton-tmp-x method) (newton-value-x value))
-                           ;; F-TMP-VALUE must contain last time evaluated F on x + lambda p
-                           (copy-vector-to! f-tmp-value (newton-value-f value))
-                           (setf (newton-value-g0 value) g1)
-                           (setf (newton-value-Dg0 value) (* -2d0 g1))
-                           value)))
-                      (t (error ""))))
-              (error 'linear-solver-failed
-                     :info (list :solution solution
-                                 :info info))))))))
+  (with-accessors ((df->x newton-df->x)
+                   (tmp-x newton-tmp-x)
+                   (lsearch newton-linsearch)
+                   (lin-solver newton-linear-solver))
+      method
+    (let (f-tmp-value
+          (safety-coeff 0.9d0))
+      (lambda (value)
+        (declare (type newton-value value))
+        (with-accessors ((x newton-value-x)
+                         (p newton-value-dir)
+                         (f-value newton-value-f)
+                         (g0 newton-value-g0)
+                         (Dg0 newton-value-Dg0))
+            value
+         (flet ((ls-g (lmbda)
+                  (linear-combination! 0d0 tmp-x (cons 1d0 x) (cons lmbda p))
+                  (setf f-tmp-value (funcall f tmp-x))
+                  (* 0.5d0 (square-vector f-tmp-value)))
+                (df-fun (y b)
+                  (negate-vector! (jacobian*vector-save f x y df->x b))))
+           (copy-vector-to! x p)
+           (multiple-value-bind (solution successful-p info)
+               (solve-linear lin-solver #'df-fun f-value p)
+             (unless successful-p
+               (error 'linear-solver-failed :info `(:solution ,solution :info ,info)))
+             (let ((g1 (ls-g 1d0)))
+               ;; (format t "~&NEWTON: ~A ~F~%" value g1)
+               (unless (< g1 (* safety-coeff g0))
+                   (let ((ls-result (linsearch lsearch #'ls-g g0 Dg0 g1 :gamma #'newton-step-gamma)))
+                     (unless (iterator:finished-p ls-result)
+                       (error 'linsearch-failed :value (iterator:value ls-result)))
+                     (setf g1 (linsearch-value-g1 (iterator:value ls-result)))))
+               (copy-vector-to! tmp-x x)
+               (copy-vector-to! f-tmp-value f-value)
+               (setf g0 g1)
+               (setf Dg0 (* -2d0 g1))
+               value))))))))
+
+
+;; ** Solver
 
 (defun init-method! (method f x)
-  (let ((val (newton-method-value method)))
+  (let ((val (newton-value method)))
     (copy-vector-to! x (newton-value-x val))
-    (copy-vector-to! (funcall f x) (newton-value-f val))))
+    (copy-vector-to! (funcall f x) (newton-value-f val))
+    (setf (newton-value-g0 val) (* 0.5 (square-vector (newton-value-f val))))
+    (setf (newton-value-Dg0 val) (* -2d0 (newton-value-g0 val)))))
 
 
-(defun newton-method-solve (method f x &rest other-controls)
+(defun newton-solve (method f x &rest other-controls)
   (let ((stepper (make-newton-step method f))
-        (control (make-control-newton *newton-tolerance*
+        (control (make-newton-control *newton-tolerance*
                                       *newton-max-iterations*
                                       other-controls)))
     (init-method! method f x)
-    (fixed-point control stepper (newton-method-value method))))
+    (fixed-point control stepper (newton-value method))))

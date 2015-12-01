@@ -13,6 +13,7 @@
                               :serial t
                               :components ((:file "package")
                                            (:file "constants")
+                                           (:file "helpers")
                                            (:file "iterator")
                                            (:file "control")
                                            (:file "fixed-point")))

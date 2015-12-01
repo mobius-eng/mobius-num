@@ -231,6 +231,7 @@
                      (g0 linsearch-value-g0)
                      (Dg0 linsearch-value-dg0))
         value
+      ;; (format t "~&LINSEARCH: ~A~%" value)
       (match lambda2
         (nil
          (move-1->2! value)

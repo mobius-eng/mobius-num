@@ -40,7 +40,7 @@
              *bicg-stab-tolerance*))))))
 
 
-(run! 'linear-bicg)
+;; (run! 'linear-bicg)
 
 (test linear-sparse-bicg
   (let ((A (make-array '(5 5)
@@ -76,7 +76,7 @@
                   0.0d0
                   *bicg-stab-tolerance*))))))
 
-(run! 'linear-sparse-bicg)
+;; (run! 'linear-sparse-bicg)
 
 
 (test linear-sparse-bicg-close-x0
@@ -113,7 +113,7 @@
                   0.0d0
                   *bicg-stab-tolerance*))))))
 
-(run! 'linear-sparse-bicg-close-x0)
+;; (run! 'linear-sparse-bicg-close-x0)
 
 (test linear-sparse-bicg-through-solver
   (let ((A (make-array '(5 5)
@@ -140,8 +140,7 @@
         (is (almost-zero-p final-residual *bicg-stab-tolerance*))
         (is (almost-zero-p (l2-norm-diff x solution) *bicg-stab-tolerance*))))))
 
-(run! 'linear-sparse-bicg-through-solver)
-
+;; (run! 'linear-sparse-bicg-through-solver)
 
 
 (test bicg-solve-dense-3x3-from-newton
@@ -171,4 +170,6 @@
                (l2-norm-diff b actual-b)
                *bicg-stab-tolerance*)))))))
 
-(run! 'bicg-solve-dense-3x3-from-newton)
+;; (run! 'bicg-solve-dense-3x3-from-newton)
+
+(run! 'linear-suite)

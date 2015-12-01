@@ -37,7 +37,7 @@
               :element-type type
               :initial-contents items))
 
-;; ** Mics operations
+;; ** Misc operations
 (defun copy-vector-to! (source destination)
   "Copy data from vector SOURCE (VECTOR * *) into
 DESTINATION (VECTOR DOUBLE-FLOAT *)"
@@ -93,7 +93,7 @@ Both vectors must be (VECTOR DOUBLE-FLOAT *)"
     i
 
 "
-  (declare (type (vector double-float *) v))
+  (declare (type (vector * *) v))
   (loop for x across v summing (* x x)))
 
 
@@ -201,6 +201,11 @@ MULT-ARG is a squence of CONS-cells
              (+ (* k (aref v i))
                 (loop for (c . w) in coeff-vectors
                      summing (* c (aref w i)))))))))
+
+(defun negate-vector! (v)
+  (declare (type (vector double-float *) v))
+  (dotimes (i (length v))
+    (setf (aref v i) (- (aref v i)))))
 
 
 (defun matrix-mul (matrix vector dest)

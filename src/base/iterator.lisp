@@ -75,10 +75,9 @@
 
 
 (defun bind (iterator function)
-  (match iterator
-    ((iterator (status :continue))
-     (update-info (funcall function (value iterator))
-                  (lambda (new-info)
-                    (nconc new-info (info iterator)))))))
+  (if (continue-p iterator)
+      (update-info (funcall function (value iterator))
+                   (lambda (new-info) (nconc new-info (info iterator))))
+      iterator))
 
 

@@ -36,14 +36,15 @@
                           #:directional-derivative-f
                           #:partial
                           #:comp)
-  (:export #:newton-value #:make-newton-value
-           #:newton-method #:newton-control
-           #:make-newton-method
-           #:make-control-newton
+  (:export #:newton-value
+           #:newton-solution
+           #:newton-residual
+           #:make-newton-value
+           #:newton #:make-newton
+           #:linear-solver-failed #:linsearch-failed
            #:*newton-tolerance* #:*newton-max-iterations*
            #:make-newton-step
-           #:newton-method-solve
-           #:newton-solution))
+           #:newton-solve))
 #|
 (defpackage #:mobius.numeric.diff
   (:use #:cl #:mv #:linop #:cl-slice)

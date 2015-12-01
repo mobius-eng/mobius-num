@@ -19,15 +19,16 @@ starting from x = 1"
         (g0 0.5d0)
         (Dg0 -1d0))
     (let ((g1 (funcall g 1.0d0))
-          (linsearch (make-linsearch g #'newton-step-gamma)))
-      (let ((result (linsearch linsearch g g0 Dg0 g1)))
+          (linsearch (make-linsearch)))
+      (let ((result (linsearch linsearch g g0 Dg0 g1 :gamma #'newton-step-gamma)))
         (is (iterator:finished-p result))
         (let ((val (iterator:value result)))
           (is (> (linsearch-value-lambda1 val) *linsearch-abs-lambda-min*))
           (is (<= (linsearch-value-lambda1 val) 1.0d0 ))
           (is (< (linsearch-value-g1 val) g0)))))))
 
-(run! 'nonlinear-linsearch)
+;; (run! 'nonlinear-linsearch)
+
 
 (test nonlinear-vector
   (let ((f (let ((f-out (make-vector 3)))
@@ -41,16 +42,20 @@ starting from x = 1"
                    f-out)))))
         (exact-solution (vec 'double-float 0.0d0 1.0d0 -0.045112d0))
         (x0 (vec t 0.5d0 0.5d0 -0.1d0))
-        (newton-method (make-newton-method 3)))
-    (let ((solution (newton-method-solve newton-method f x0)))
-      (format t "~A~%" solution)
+        (newton-method (make-newton 3)))
+    (let ((solution (newton-solve newton-method f x0)))
+      (format t "~&~A~%" solution)
       (is (iterator:finished-p solution))
       (is (almost-zero-p
            (l2-norm-diff exact-solution
                          (newton-solution (iterator:value solution)))
-           (* 100d0 *newton-tolerance*))))))
+           (* 100d0 *newton-tolerance*)))
+      (is (vector-almost-zero-p (newton-residual (iterator:value solution))
+                                *newton-tolerance*)))))
 
-(run! 'nonlinear-vector)
+;; (run! 'nonlinear-vector)
+
+(run! 'nonlinear-suite)
 
 ;; (let* ((f (let ((f-out (make-vector 3)))
 ;;             (lambda (v)
