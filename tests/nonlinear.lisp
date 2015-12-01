@@ -4,77 +4,85 @@
 
 (in-suite nonlinear-suite)
 
-(test nonlinear-scalar
-  (let ((f #f(- % (sqrt %)))
-        (df #f(- 1.0d0 (/ 0.5d0 (sqrt %))))
-        (x0 5.0d0))
-    (multiple-value-bind (x fx status) (fsolve f x0 :df df)
-      (is (eq status :FINISHED))
-      (is (<= (abs fx) 1.0d-9))
-      (is (num= x 1.0d0)))))
+(test nonlinear-linsearch
+  "Line search for equation
+ 
+     1/3
+    x    = 0
 
-(run! 'nonlinear-scalar)
+starting from x = 1"
+  (let ((g (lambda (x)
+             (let ((y (* 0.5d0 (expt (expt (- 1.0d0 (* 3.0d0 x)) 2)
+                                     1/3))))
+               (format t "~&g(~A) = ~A~%" x y)
+               y)))
+        (g0 0.5d0)
+        (Dg0 -1d0))
+    (let ((g1 (funcall g 1.0d0))
+          (linsearch (make-linsearch g #'newton-step-gamma)))
+      (let ((result (linsearch linsearch g g0 Dg0 g1)))
+        (is (iterator:finished-p result))
+        (let ((val (iterator:value result)))
+          (is (> (linsearch-value-lambda1 val) *linsearch-abs-lambda-min*))
+          (is (<= (linsearch-value-lambda1 val) 1.0d0 ))
+          (is (< (linsearch-value-g1 val) g0)))))))
 
-;; this example breaks with BiCGSTAB: need good preconditioner.
+(run! 'nonlinear-linsearch)
+
 (test nonlinear-vector
-  (let ((f #'(lambda (v buf)
-               (let ((x (mvref v 0))
-                     (y (mvref v 1))
-                     (z (mvref v 2)))
-                 (setf (mvref buf 0) (+ (* (cos x) (exp (* -2.0d0 y)))
-                                        (* 3.0d0 z)))
-                 (setf (mvref buf 1) (- (* y y) x 1.0d0))
-                 (setf (mvref buf 2) (+ (* z z z) (sin x) 9.18056d-5))
-                 buf)))
-        (df #'(lambda (v buf)
-                (let ((x (mvref v 0))
-                      (y (mvref v 1))
-                      (z (mvref v 2)))
-                  ;; d0F
-                  (setf (aref buf 0 0) (- (* (sin x) (exp (* -2.0d0 y)))))
-                  (setf (aref buf 1 0) -1.0d0)
-                  (setf (aref buf 2 0) (cos x))
-                  ;; d1F
-                  (setf (aref buf 0 1) (* -2.0d0 (cos x) (exp (* -2.0d0 y))))
-                  (setf (aref buf 1 1) (* 2.0d0 y))
-                  (setf (aref buf 2 1) 0.0d0)
-                  ;; d2F
-                  (setf (aref buf 0 2) 3.0d0)
-                  (setf (aref buf 1 2) 0.0d0)
-                  (setf (aref buf 2 2) (* 3.0d0 z z))
-                  buf)))
-        (exact-solution (up 0.0d0 1.0d0 -0.045112d0))
-        (x0 (up 0.5d0 0.5d0 -0.1d0))
-        (df-buf (make-array '(3 3) :element-type 'double-float)))
-    (multiple-value-bind (x fx status) (fsolve f x0
-                                               :simple-function nil
-                                               :df df
-                                               :df-tmp df-buf
-                                               :lin-solver #'(lambda (A b &optional x0 x)
-                                                               ;(declare (ignore x0 x))
-                                                               (m/ A b x0 x))
-                                               :criteria (make-criteria
-                                                          :converged-fsolve 1.0d-6
-                                                          :limit-iterations 20
-                                                          :log-value
-                                                          #f(format t
-                                                                    "~&Nonlinear = ~A~%"
-                                                                    %)))
-      (is (eq status :FINISHED))
-      (is (< (norm fx) 1.0d-7))
-      (is (num= exact-solution x)))))
+  (let ((f (let ((f-out (make-vector 3)))
+             (lambda (v)
+               (with-vector-items ((x 0) (y 1) (z 2)) v
+                 (with-vector-items ((p 0) (q 1) (r 2)) f-out
+                   (setf p (+ (* (cos x) (exp (* -2.0d0 y)))
+                              (* 3.0d0 z)))
+                   (setf q (- (expt y 2) x 1.0d0))
+                   (setf r (+ (expt z 3) (sin x) 9.18056d-5))
+                   f-out)))))
+        (exact-solution (vec 'double-float 0.0d0 1.0d0 -0.045112d0))
+        (x0 (vec t 0.5d0 0.5d0 -0.1d0))
+        (newton-method (make-newton-method 3)))
+    (let ((solution (newton-method-solve newton-method f x0)))
+      (format t "~A~%" solution)
+      (is (iterator:finished-p solution))
+      (is (almost-zero-p
+           (l2-norm-diff exact-solution
+                         (newton-solution (iterator:value solution)))
+           (* 100d0 *newton-tolerance*))))))
 
-(use-package 'criteria)
-(let ((*bicgstab-criteria* (make-criteria
-                            :bicg-small-residual 1.0d-9
-                            :limit-iterations 20
-                            :log-value #f(format t "~&Approximation = ~A~%" %))))
- (run! 'nonlinear-vector))
+(run! 'nonlinear-vector)
+
+;; (let* ((f (let ((f-out (make-vector 3)))
+;;             (lambda (v)
+;;               (with-vector-items ((x 0) (y 1) (z 2)) v
+;;                 (with-vector-items ((p 0) (q 1) (r 2)) f-out
+;;                   (setf p (+ (* (cos x) (exp (* -2.0d0 y)))
+;;                              (* 3.0d0 z)))
+;;                   (setf q (- (expt y 2) x 1.0d0))
+;;                   (setf r (+ (expt z 3) (sin x) 9.18056d-5))
+;;                   f-out)))))
+;;        (df-v (let ((buf1 (make-vector 3))
+;;                    (buf2 (make-vector 3)))
+;;               (lambda (x v)
+;;                 (jacobian*vector-save f x v buf1 buf2))))
+;;        (x0 (vec t 0.5d0 0.5d0 -0.1d0)))
+;;   (funcall df-v x0 #(1 0 0)))
 
 
-;; last Dx
-;; (UP -2.024369688332788d-6 1.3771500952312096d-4 3.6902088330656984d-5)
-;; (UP -3.291614049084749d-5 0.01665810079725665d0 0.003753565106635637d)
+;; (let ((f (let ((f-out (make-vector 3)))
+;;            (lambda (v)
+;;              (with-vector-items ((x 0) (y 1) (z 2)) v
+;;                (with-vector-items ((p 0) (q 1) (r 2)) f-out
+;;                  (setf p (+ (* (cos x) (exp (* -2.0d0 y)))
+;;                             (* 3.0d0 z)))
+;;                  (setf q (- (expt y 2) x 1.0d0))
+;;                  (setf r (+ (expt z 3) (sin x) 9.18056d-5))
+;;                  f-out)))))
+;;       (exact-solution (vec 'double-float 0.0d0 1.0d0 -0.045112d0))
+;;       (x0 (vec t 0.5d0 0.5d0 -0.1d0))
+;;       (newton-method (make-newton-method 3)))
+;;     (let ((solution (newton-method-solve newton-method f x0)))
+;;       (format t "~A~%" solution)))
 
 
 

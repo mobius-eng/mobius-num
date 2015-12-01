@@ -5,143 +5,170 @@
 
 (in-suite linear-suite)
 
-;; no numbers any more in linear operations
-;; (test linear-numbers
-;;   "Implementation of linear operations for numbers"
-;;   (is (= (zero-vector 1.0d0) 0.0d0))
-;;   (is (numberp (make-vector 1.0d0 0)))
-;;   (is (= (vector-dim 1.0d0) 0))
-;;   (is (num= (map-vector 2.0d0 #f(+ % 3.0d0)) 5.0d0))
-;;   (is (num= (reduce-vector 1.0d0 #'(lambda (r x) (+ r x)) 10.0d0) 11.0d0))
-;;   (is (num= (dot 2.0d0 3.0d0) 6.0d0))
-;;   (is (num= (m* 2.0d0 3.0d0) 6.0d0))
-;;   (is (num= (m/ 6.0d0 3.0d0) (/ 3.0d0 6.0d0)))
-;;   (is (num= (transpose 2.0d0) 2.0d0)))
-
-(test linear-vectors
-  (is (num= (zero-vector (dfvec 1.0 2.0 3.0)) (dfvec 0.0 0.0 0.0)))
-  (let ((v (sb64vec 1 2 3)))
-    (is (and (num= (zero-vector v v) (sb64vec 0 0 0))
-             (num= v (sb64vec 0 0 0)))))
-  (let ((u (sb64vec 1 2 3 1 2 3))
-        (v (sb64vec 3 2 1 3 2 1))
-        (c (make-vector sb64 6)))
-    (format t "~&Testing of LINEAR-VECTORS starts with u = ~A and v = ~A~%"
-            u v)
-    (is (= (vector-dim u) 6))
-    (is (= (vector-dim c) 6))
-    (is (num= (.+ u v) (sb64vec 4 4 4 4 4 4)))
-    (is (and (num= (.+! c u v) (sb64vec 4 4 4 4 4 4))
-             (num= c (sb64vec 4 4 4 4 4 4))))
-    (is (num= (.- u v) (sb64vec -2 0 2 -2 0 2)))
-    (is (num= (.-! c u v) (sb64vec -2 0 2 -2 0 2)))
-    (is (and (num= (progn
-                     (copy-vector (sb64vec 1 2 3 1 2 3) c)
-                     (.=-! c v))
-                   (sb64vec -2 0 2 -2 0 2))
-             (num= c (sb64vec -2 0 2 -2 0 2)))))
-  (is (num= (dot (sb64vec 1 2 3) (sb64vec 1 1 1)) 6))
-  (let ((u (dfvec 1.0d0 2.0d0 3.0d0 4.0d0 5.0d0 6.0d0))
-        (v (list->vector 'double-float
-                         (mapcar #'sin '(1.0d0 2.0d0 3.0d0 4.0d0 5.0d0 6.0d0)))))
-    (is (num= (.sin u) v))
-    (is (and (num= (.sin! u) v) (num= u v 1.0d-7)))))
-
-;; (is (and (num= (.=*! (.+! c u v) 2.0) (dfvec 8.0 8.0 8.0 8.0 8.0 8.0))
-;;              (num= c (dfvec 8.0 8.0 8.0 8.0 8.0 8.0))))
+(test linear-bicg
+  (let ((A (make-array (list 5 5) :element-type 'double-float))
+        (b (make-double-float-vector 5))
+        (x0 (vector 1 1 1 1 1))
+        (x (vector 1 1 1 1 1))
+        (num-gen (let ((gen (gen-integer :min -10 :max 10)))
+                   (lambda ()  (coerce (funcall gen) 'double-float))))
+        (num-gen-pos (let ((gen (gen-integer :min 1 :max 10)))
+                       (lambda () (coerce (funcall gen) 'double-float))))
+        (log-control (let ((performed -1))
+                       (log-computation
+                        (lambda (tag x)
+                          (declare (ignore tag))
+                          (incf performed)
+                          (format t "Computation #~D~%x = ~A~%"
+                                  performed x))))))
+    (dotimes (i 5)
+      (setf (aref x i) (* 0.2d0 (funcall num-gen)))
+      (setf (aref x0 i) (* (aref x i) (+ 0.5d0 (random 1.0d0))))
+      (dotimes (j 5)
+        (if (= i j)
+            (setf (aref A i j) (* 2.0d0 (funcall num-gen-pos)))
+            (setf (aref A i j) (* 0.2d0 (funcall num-gen))))))
+    (let ((a-fun (matrix-mul->function A))
+          (bicg (make-bicg-stab 5 log-control)))
+      (funcall a-fun x b)
+      (format t "Problem:~%A = ~A~%x = ~A~%x0 = ~A~%b = ~A~%" A x x0 b)
+      (let ((result (bicg-stab-solve bicg a-fun b x0)))
+        (format t "Solution:~%~A~%" result)
+        (is (iterator:finished-p result))
+        (is (almost-zero-p
+             (l2-norm-diff x (bicg-stab-solution (iterator:value result)))
+             *bicg-stab-tolerance*))))))
 
 
-(run! 'linear-vectors)
-
-;; (test linear-arrays
-;;   (is (num= (zero-vector #2a((1 2 3) (2 4 5))) #2a((0 0 0) (0 0 0))))
-;;   (is (num= (m* #2a((1 2 3) (4 5 6) (7 8 9)) #(1 2 3)) #(14 32 50)))
-;;   (is (num= (m* #2a((1 2) (3 4)) #2a((3 4) (1 2))) #2a((5 8) (13 20))))
-;;   (let ((A (make-array (list 5 5) :element-type 'double-float))
-;;         (b (make-array 5 :element-type 'double-float))
-;;         (num-gen (lambda ()  (coerce (funcall (gen-integer :min -10 :max 10))
-;;                                 'double-float))))
-;;     (loop for i below 5
-;;        do (progn
-;;             (setf (aref b i) (funcall num-gen))
-;;             (loop for j below 5
-;;                do (setf (aref A i j) (funcall num-gen)))))
-;;     (if (not (num= (lla:det A) 0.0d0))
-;;         (let ((x (m/ A b)))
-;;           (format t "~&Solving Ax=b~%")
-;;           (is (num= (m* A x) b)))
-;;         (progn
-;;           (format t "det(A) = 0!~%")
-;;           (is (= 1 1))))))
-
-;; (test linear-mvectors
-;;   (let ((u (up   0 1 2 3 4))
-;;         (v (down 1 1 1 1 1)))
-;;     (is (num= (mvref u 3) 3.0d0))
-;;     (is (num= (e+ u (transpose v)) (up 1 2 3 4 5)))
-;;     (is (num= (e- u (transpose v) 1.0d0) (up -2 -1 0 1 2)))))
-
-;; (test linear-bicg
-;;   (let ((A (make-array (list 5 5) :element-type 'double-float))
-;;         (b (up 0 0 0 0 0))
-;;         (x0 (up 1 1 1 1 1))
-;;         (x (up 1 1 1 1 1))
-;;         (num-gen (lambda ()  (coerce (funcall (gen-integer :min -10 :max 10))
-;;                                 'double-float))))
-;;     (loop for i below 5
-;;        do (progn
-;;             (setf (mvref b i) (funcall num-gen))
-;;             (setf (mvref x0 i) (funcall num-gen))
-;;             (loop for j below 5
-;;                do (setf (aref A i j) (funcall num-gen)))))
-;;     (if (not (num= (lla:det A) 0.0d0))
-;;         (progn
-;;           (format t "~&Solving Ax=b~%")
-;;           (format t "A = ~A~%" A)
-;;           (format t "b = ~A~%" b)
-;;           (let ((x (m/ A b x0 x)))
-;;             (format t "x = ~A~%" x)
-;;             (is (num= (m* A x) b))))
-;;         (progn
-;;           (format t "det(A) = 0!~%")
-;;           (is (= 1 1))))))
+(run! 'linear-bicg)
 
 (test linear-sparse-bicg
-  (let ((A (list->vector 'array '(( 5d0  1d0  0d0  0d0 0d0)
-                                  (-2d0  5d0  1d0  0d0 0d0)
-                                  ( 0d0 -2d0  5d0  1d0 0d0)
-                                  ( 0d0  0d0 -2d0  5d0 1d0)
-                                  ( 0d0  0d0  0d0 -2d0 5d0))))
-        (b  (list->vector 'vector '(7.0d0 11 15 19 17)))
-        (x0 (list->vector 'vector '(1.0d0 20 10 10 50)))
-        (x (list->vector 'vector '(0.0d0 0 0 0 0)))
-        (r (list->vector 'vector '(0.0d0 0 0 0 0))))
-    (let* ((bicgstab-method (make-bicgstab-method x))
-           (solution (bicgstab bicgstab-method A b x0 x r)))
-      (is (iterator:finished-p solution))
-      (if (iterator:finished-p solution)
-          (destructuring-bind (x r) (iterator:value solution)
-            (is (num= (m* A x) b))
-            (is (< (norm r) 1.0d-9)))))))
+  (let ((A (make-array '(5 5)
+                       :element-type 'double-float
+                       :initial-contents '(( 5d0  1d0  0d0  0d0 0d0)
+                                           (-2d0  5d0  1d0  0d0 0d0)
+                                           ( 0d0 -2d0  5d0  1d0 0d0)
+                                           ( 0d0  0d0 -2d0  5d0 1d0)
+                                           ( 0d0  0d0  0d0 -2d0 5d0))))
+        (b  (make-double-float-vector 5))
+        (x0 (make-double-float-vector 5))
+        (x (vec 'double-float 1d0 1.2d0 1.25d0 1.3d0 1.3d0))
+        (log-control (let ((performed -1))
+                       (log-computation
+                        (lambda (tag x)
+                          (declare (ignore tag))
+                          (incf performed)
+                          (format t "Computation #~D~%x = ~A~%"
+                                  performed x))))))
+    (dotimes (i 5)
+      (setf (aref x0 i) (* (aref x i) (+ 1.0 (- (random 0.8d0) 0.4d0)))))
+    (format t "Initial approximation for~%x = ~A~%is~%~A~%" x x0)
+    (let ((fun-a (matrix-mul->function A))
+          (bicg (make-bicg-stab 5 log-control)))
+      (funcall fun-a x b)
+      (let ((result (bicg-stab-solve bicg fun-a b x0)))
+        (format t "Solution is~%~A~%" result)
+        (is (iterator:finished-p result))
+        (is (num= (l2-norm-diff x (bicg-stab-solution (iterator:value result)))
+                  0.0d0
+                  *bicg-stab-tolerance*))
+        (is (num= (l2-norm (bicg-stab-residual (iterator:value result)))
+                  0.0d0
+                  *bicg-stab-tolerance*))))))
 
 (run! 'linear-sparse-bicg)
 
 
-;; (let ((A (list->vector 'array '(( 5d0  1d0  0d0  0d0 0d0)
-;;                                   (-2d0  5d0  1d0  0d0 0d0)
-;;                                   ( 0d0 -2d0  5d0  1d0 0d0)
-;;                                   ( 0d0  0d0 -2d0  5d0 1d0)
-;;                                   ( 0d0  0d0  0d0 -2d0 5d0))))
-;;         (b  (list->vector 'vector '(7.0d0 11 15 19 17)))
-;;         (x0 (list->vector 'vector '(1.0d0 20 10 10 50)))
-;;         (x (list->vector 'vector '(0.0d0 0 0 0 0)))
-;;         (r (list->vector 'vector '(0.0d0 0 0 0 0))))
-;;     (let* ((bicgstab-method (make-bicgstab-method x))
-;;            (solution (bicgstab bicgstab-method A b x0 x r)))
-;;       solution))
+(test linear-sparse-bicg-close-x0
+  (let ((A (make-array '(5 5)
+                       :element-type 'double-float
+                       :initial-contents '(( 5d0  1d0  0d0  0d0 0d0)
+                                           (-2d0  5d0  1d0  0d0 0d0)
+                                           ( 0d0 -2d0  5d0  1d0 0d0)
+                                           ( 0d0  0d0 -2d0  5d0 1d0)
+                                           ( 0d0  0d0  0d0 -2d0 5d0))))
+        (b  (make-double-float-vector 5))
+        (x0 (make-double-float-vector 5))
+        (x (vec 'double-float 1d0 1.2d0 1.25d0 1.3d0 1.3d0))
+        (log-control (let ((performed -1))
+                         (log-computation
+                          (lambda (tag x)
+                            (declare (ignore tag))
+                            (incf performed)
+                            (format t "Computation #~D~%x = ~A~%"
+                                    performed x))))))
+    (dotimes (i 5)
+      (setf (aref x0 i) (* (aref x i) (+ 1.0 (- (random 1.0d-10) 0.5d-10)))))
+    (format t "Initial approximation for~%x = ~A~%is~%~A~%" x x0)
+    (let ((fun-a (matrix-mul->function A))
+          (data (make-bicg-stab 5 log-control)))
+      (funcall fun-a x b)
+      (let ((result (bicg-stab-solve data fun-a b x0)))
+        (format t "Solution is~%~A~%" result)
+        (is (iterator:finished-p result))
+        (is (num= (l2-norm-diff x (bicg-stab-solution (iterator:value result)))
+                  0.0d0
+                  *bicg-stab-tolerance*))
+        (is (num= (l2-norm (bicg-stab-residual (iterator:value result)))
+                  0.0d0
+                  *bicg-stab-tolerance*))))))
+
+(run! 'linear-sparse-bicg-close-x0)
+
+(test linear-sparse-bicg-through-solver
+  (let ((A (make-array '(5 5)
+                       :element-type 'double-float
+                       :initial-contents '(( 5d0  1d0  0d0  0d0 0d0)
+                                           (-2d0  5d0  1d0  0d0 0d0)
+                                           ( 0d0 -2d0  5d0  1d0 0d0)
+                                           ( 0d0  0d0 -2d0  5d0 1d0)
+                                           ( 0d0  0d0  0d0 -2d0 5d0))))
+        (b  (make-double-float-vector 5))
+        (x0 (make-double-float-vector 5))
+        (x (vec 'double-float 1d0 1.2d0 1.25d0 1.3d0 1.3d0))
+        (data (make-bicg-stab 5)))
+    (dotimes (i 5)
+      (setf (aref x0 i) (* (aref x i) (+ 1.0 (- (random 1.0d0) 0.5d0)))))
+    (format t "Initial approximation for~%x = ~A~%is~%~A~%" x x0)
+    (let ((fun-a (matrix-mul->function A)))
+      (funcall fun-a x b)
+      (multiple-value-bind (solution successful-p final-residual)
+          (solve-linear data fun-a b x0)
+        (format t "Solution: ~A~%~A~%~A~%" solution successful-p final-residual)
+        (is (eq successful-p t))
+        (is (eq solution x0))
+        (is (almost-zero-p final-residual *bicg-stab-tolerance*))
+        (is (almost-zero-p (l2-norm-diff x solution) *bicg-stab-tolerance*))))))
+
+(run! 'linear-sparse-bicg-through-solver)
 
 
-;; (defun run-linear-suite ()
-;;   (run! 'linear-suite))
 
-;; (run! 'linear-suite)
+(test bicg-solve-dense-3x3-from-newton
+  (let ((a (make-array '(3 3)
+                       :element-type 'double-float
+                       :initial-contents
+                       '((-0.1763708d0 -0.645689165d0 3d0)
+                         (-1d0         1d0            0d0)
+                         (0.999739d0   0d0            0.03d0))))
+        (b (vec 'double-float 0.0228446d0 -1.25d0 0.4785175386d0))
+        (x0 (vec 'double-float 0.5d0 0.5d0 -0.1d0))
+        (actual-b (make-vector 3 'double-float))
+        (log-out (log-computation
+                  (let ((n -1))
+                    (lambda (tag data)
+                      (declare (ignore tag))
+                      (incf n)
+                      (format t "~&Iteration #~D~%x = ~A~%" n (bicg-stab-solution data)))))))
+    (let ((fun-a (matrix-mul->function a))
+          (bicg (make-bicg-stab 3 log-out)))
+      (let ((result (bicg-stab-solve bicg fun-a b x0)))
+        (format t "~&Solution is~%~A~%" result)
+        (is (iterator:finished-p result))
+        (let ((value (iterator:value result)))
+          (funcall fun-a (bicg-stab-solution value) actual-b)
+          (is (almost-zero-p
+               (l2-norm-diff b actual-b)
+               *bicg-stab-tolerance*)))))))
+
+(run! 'bicg-solve-dense-3x3-from-newton)
