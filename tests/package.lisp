@@ -37,7 +37,7 @@
 
 (defpackage #:mobius.numeric.tests.nonlinear
   (:nicknames #:num-tests-nonlinear)
-  (:use #:cl #:ad #:linear-base #:newton #:fiveam #:numeric-helpers #:numeric-linsearch)
+  (:use #:cl #:ad #:linear-base #:newton #:fiveam #:numeric-helpers #:numeric-linsearch #:numeric-nonlinear)
   (:import-from #:mobius.utils #:% #:with-vector-items)
   (:shadowing-import-from
    #:ad
