@@ -1,5 +1,10 @@
 (in-package cl-user)
 
+(defpackage #:mobius.numeric.nonlinear
+  (:nicknames #:numeric-nonlinear)
+  (:use #:cl)
+  (:export #:fsolve))
+
 (defpackage #:mobius.numeric.linsearch
   (:nicknames #:numeric-linsearch)
   (:use #:cl #:numeric-helpers #:control #:fixed-point #:optima)
@@ -17,12 +22,12 @@
            #:make-linsearch
            #:linsearch-step))
 
-
 (defpackage #:mobius.numeric.newton-raphson
   (:nicknames #:newton)
-  (:use #:cl #:mobius.utils #:linear-base #:bicg-stab
+  (:use #:cl #:optima #:mobius.utils #:linear-base #:bicg-stab
         #:fixed-point #:control #:numeric-helpers
-        #:numeric-linsearch)
+        #:numeric-linsearch
+        #:numeric-nonlinear)
   (:shadowing-import-from #:ad
                           #:+ #:- #:* #:/
                           #:sin #:cos #:tan #:asin #:acos #:atan

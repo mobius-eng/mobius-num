@@ -51,7 +51,7 @@
   (lambda (val)
     (with-accessors ((p newton-value-dir) (g0 newton-value-g0)) val
       (and (vector-almost-zero-p p tolerance)
-           (almost-zero-p g0 tolerance)))))
+           (almost-zero-p (sqrt (* 2.0d0 g0)) tolerance)))))
 
 (defun make-newton-control (tolerance max-iterations other-controls)
   (apply #'combine-controls
@@ -166,10 +166,19 @@
     (setf (newton-value-Dg0 val) (* -2d0 (newton-value-g0 val)))))
 
 
-(defun newton-solve (method f x &rest other-controls)
-  (let ((stepper (make-newton-step method f))
-        (control (make-newton-control *newton-tolerance*
-                                      *newton-max-iterations*
-                                      other-controls)))
+(defun newton-solve (method f x)
+  (let ((stepper (make-newton-step method f)))
     (init-method! method f x)
-    (fixed-point control stepper (newton-value method))))
+    (fixed-point (newton-control method) stepper (newton-value method))))
+
+;; ** Implementation of FSOLVE
+
+(defmethod fsolve ((method newton) f x0)
+  (match (newton-solve method f x0)
+    ((iterator:iterator :status :finished :value value)
+     (copy-vector-to! (newton-solution value) x0)
+     (values x0 T (sqrt (* 2d0 (newton-value-g0 value)))))
+    ((iterator:iterator :value value)
+     (copy-vector-to! (newton-solution value) x0)
+     (values x0 nil (sqrt (* 2d0 (newton-value-g0 value)))))
+    (x (values x0 nil x))))
