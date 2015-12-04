@@ -275,10 +275,12 @@ Return value: ITERATOR of BICG-STAB-VALUE"
                           value)))))
 
 (defun bicg-stab-residual (value)
+  "Get residual (error) from BICG-STAB-VALUE"
   (declare (type bicg-stab-value value))
   (bicg-r value))
 
 (defun bicg-stab-solution (value)
+  "Get solution from BICG-STAB-VALUE"
   (declare (type bicg-stab-value value))
   (bicg-x value))
 

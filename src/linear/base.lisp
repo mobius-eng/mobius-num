@@ -9,6 +9,7 @@
                                    :reader vector-length-mismatch-length2)))
 
 (defun check-vector-lengths (vec &rest more-vectors)
+  "Tests if all vectors have the same length"
   (let ((len (length vec))
         other-length)
     (or (every (lambda (w)
@@ -203,14 +204,17 @@ MULT-ARG is a squence of CONS-cells
                    summing (* c (aref w i)))))))))
 
 (defun scale-vector! (factor vector &optional (result vector))
+  "Multiply VECTOR by FACTOR. RESULT must be the vector of the same length"
   (check-vector-lengths vector result)
   (dotimes (i (length vector))
     (setf (aref result i) (* factor (aref vector i)))))
 
-(defun negate-vector! (v)
-  (declare (type (vector double-float *) v))
-  (dotimes (i (length v))
-    (setf (aref v i) (- (aref v i)))))
+(defun negate-vector! (vector &optional (result vector))
+  "Negate vector VECTOR (VECTOR DOUBLE-FLOAT *)"
+  (declare (type (vector double-float *) vector result))
+  (check-vector-lengths vector result)
+  (dotimes (i (length vector))
+    (setf (aref result i) (- (aref vector i)))))
 
 
 (defun matrix-mul (matrix vector dest)

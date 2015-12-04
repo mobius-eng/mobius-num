@@ -32,6 +32,7 @@
     :accessor linsearch-value-dg0)))
 
 (defun make-linsearch-value (g0 Dg0 g1 &optional (lambda1 0d0) lambda2 g2)
+  "Construct the value for line search of the problem G(lambda) -> min"
   (make-instance 'linsearch-value
     :lambda1 lambda1
     :lambda2 lambda2
@@ -53,6 +54,7 @@
               g0 Dg0 lambda1 g1 lambda2 g2))))
 
 (defun move-1->2! (value)
+  "Move the latest approximation to the second latest"
   (with-accessors ((lambda1 linsearch-value-lambda1)
                    (lambda2 linsearch-value-lambda2)
                    (g1 linsearch-value-g1)
@@ -62,6 +64,7 @@
     (setf g2 g1)))
 
 (defun update-1! (value new-lambda1 new-g1)
+  "Put new approximation"
   (with-accessors ((lambda1 linsearch-value-lambda1)
                    (g1 linsearch-value-g1))
       value
@@ -69,6 +72,7 @@
     (setf g1 new-g1)))
 
 (defun reinit-value! (value new-g0 new-dg0 new-g1)
+  "Reinitialize the value"
   (with-accessors ((lambda1 linsearch-value-lambda1)
                    (lambda2 linsearch-value-lambda2)
                    (g1 linsearch-value-g1)
@@ -85,11 +89,16 @@
 
 ;; ** Control
 
-(defvar *linsearch-alpha* 1d-4)
-(defvar *linsearch-abs-lambda-min* 1d-3)
-(defvar *linsearch-max-iterations* 10)
+(defvar *linsearch-alpha* 1d-4
+  "Safety coefficient for minimization:
+    g(lambda) < g0 + alpha * Dg(lambda)")
+(defvar *linsearch-abs-lambda-min* 1d-3
+  "Absolute minimum of lambda")
+(defvar *linsearch-max-iterations* 10
+  "Maximum number of iterations")
 
 (defun linsearch-finished-p (alpha gamma)
+  "Construct "
   (lambda (value)
     (with-accessors ((g0 linsearch-value-g0)
                      (lambda1 linsearch-value-lambda1)
@@ -99,9 +108,14 @@
         (< g1 (+ g0 (* alpha gamma-value)))))))
 
 (defun newton-step-gamma (value)
+  "Newton step approximation for minimizing G(lambda)"
   (* -2.0d0 (linsearch-value-g0 value) (linsearch-value-lambda1 value)))
 
 (defun linsearch-lambda-keep-bound (g min-coeff max-coeff)
+  "Control function for keeping new lambda in bounds:
+
+    MIN-COEFF*LAMBDA < NEW-LAMBDA < MAX-COEFF*LAMBDA
+"
   (lambda (value)
     (with-accessors ((lambda1 linsearch-value-lambda1)
                      (lambda2 linsearch-value-lambda2)
@@ -118,6 +132,7 @@
             (t (iterator:continue value))))))
 
 (defun linsearch-abs-min-lambda (abs-min-lambda)
+  "Fail if lambda becomes too small"
   (lambda (value)
     (with-accessors ((lambda1 linsearch-value-lambda1)) value
       (< lambda1 abs-min-lambda))))
@@ -134,7 +149,10 @@
     :accessor linsearch-control-others)
    (linsearch-control-compiled
     :initform nil
-    :accessor linsearch-control-compiled)))
+    :accessor linsearch-control-compiled))
+  (:documentation
+   "Description of the control for line search: necessary as
+some parameters may change as more general computation progresses"))
 
 (defun compile-linsearch-control (linsearch-control)
   (with-slots ((g linsearch-control-g)
