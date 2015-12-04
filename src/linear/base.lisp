@@ -200,7 +200,12 @@ MULT-ARG is a squence of CONS-cells
        (setf (aref v i)
              (+ (* k (aref v i))
                 (loop for (c . w) in coeff-vectors
-                     summing (* c (aref w i)))))))))
+                   summing (* c (aref w i)))))))))
+
+(defun scale-vector! (factor vector &optional (result vector))
+  (check-vector-lengths vector result)
+  (dotimes (i (length vector))
+    (setf (aref result i) (* factor (aref vector i)))))
 
 (defun negate-vector! (v)
   (declare (type (vector double-float *) v))
