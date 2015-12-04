@@ -47,3 +47,7 @@
    #:sin #:cos #:tan #:asin #:acos #:atan
    #:sinh #:cosh #:tanh
    #:exp #:expt #:log #:sqrt))
+
+(defpackage #:mobius.numeric.tests.ode
+  (:nicknames #:num-tests-ode)
+  (:use #:cl #:numeric-helpers #:linear-base #:numeric-runge-kutta #:fiveam))

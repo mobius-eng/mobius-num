@@ -1,8 +1,16 @@
 (in-package cl-user)
 
-(defpackage #:mobius.numeric.rk45
-  (:nicknames #:numeric-rk45)
-  (:use #:cl #:linear-base #:control #:numeric-helpers))
+(defpackage #:mobius.numeric.runge-kutta
+  (:nicknames #:numeric-runge-kutta)
+  (:use #:cl #:linear-base #:control #:numeric-helpers)
+  (:export #:ode-state #:ode-state-time #:ode-state-value
+           #:rk-tableau #:rk-a #:rk-b #:rk-c #:rk-c*
+           #:intermediate-time #:intermediate-value #:tableau-order
+           #:rk-data #:rk-k #:rk-tmp-value
+           #:runge-kutta #:runge-kutta-data #:runge-kutta-tableau
+           #:rk45ck-tableau
+           #:runge-kutta-45-cash-karp #:rk45ck
+           #:runge-kutta-update-k #:ode-accept-error-p))
 
 
 (defpackage #:mobius.numeric.trapezoid
