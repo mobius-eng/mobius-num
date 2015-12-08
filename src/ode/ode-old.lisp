@@ -1,152 +1,16 @@
 (in-package mobius.numeric.ode)
 
-;; * General functionality for ODE solution
-
-;; ** ODE solution state
-(defclass ode-state ()
-  ((ode-state-time
-    :initarg :time
-    :accessor ode-state-time)
-   (ode-state-value
-    :initarg :value
-    :accessor ode-state-value)
-   (ode-state-rate
-    :initarg :rate
-    :accessor ode-state-rate)))
+(defstruct ode-state
+  "Current state of ODE system"
+  time value rate)
 
 (defun ode-state (time value rate)
-  (make-instance 'ode-state :time time :value value :rate rate))
+  (make-ode-state :time time :value value :rate rate))
 
-(defmethod print-object ((obj ode-state) out)
-  (print-unreadable-object (obj out :type t)
-    (with-accessors ((time ode-state-time)
-                     (value ode-state-value)
-                     (rate ode-state-rate))
-        obj
-      (format out "~F ~A ~A" time value rate))))
-
-(defclass ode-error ()
-  ((ode-error-scale
-    :initarg :scale
-    :reader ode-error-scale)
-   (ode-error-tolerance
-    :initarg :tolerance
-    :reader ode-error-tolerance)))
-
-(defun ode-error (scale tolerance)
-  (make-instance 'ode-error :tolerance tolerance :scale scale))
-
-(defgeneric ode-attempt-step (method ode-function state time-step ode-error)
-  (:documentation
-   "Attempt step with TIME-STEP from initial STATE using METHOD.
-Returns (VALUES SUCCESSFUL-P RECOMMENDED-STEP)
-This operation should not modify STATE!"))
-
-(defgeneric ode-perform-step (method ode-function state time-step)
-  (:documentation
-   "Perform actual step (by modifying STATE). Is called if ODE-ATTEMPT-STEP
-is successful. Return value is ignored"))
-
-(defun ode-try-step-function (method ode-function state ode-error)
-  (lambda (x)
-    (let ((step (third x)))
-      (format t "~&Trying step ~F~%" step)
-      (multiple-value-bind (successful-p recommended-step)
-          (ode-attempt-step method ode-function state step ode-error)
-        (list successful-p step recommended-step)))))
-
-(defun  ode-step (method ode-function state time-step ode-error)
-  (let ((t0 (ode-state-time state)))
-    (let ((init-attempt (list nil nil time-step))
-          (control (combine-controls
-                    (finished-value #f(first %)
-                                    #f(rest %))
-                    (failed-value #f(= t0 (+ t0 (third %)))
-                                  #f(format nil "Too small step ~F" (third %))))))
-      (match (fixed-point control
-                          (ode-try-step-function method ode-function state ode-error)
-                          init-attempt)
-        ((iterator:iterator :status :finished
-                            :value (list sccss-p tried-step recommended-step))
-         (declare (ignore sccss-p))
-         (ode-perform-step method ode-function state tried-step)
-         (values state recommended-step))
-        ((iterator:iterator :status :failed
-                            :info info)
-         (error "Step is too small ~A" info))
-        (z (error "Unexpected result ~A" z))))))
-
-
-
-(defun ode-next-step (method ode-function ode-error)
-  (lambda (x)
-    (destructuring-bind (state next-step recommended-step mt) x
-      (multiple-value-bind (new-state new-recommended-step)
-          (ode-step method ode-function state next-step ode-error)
-        (cond ((> recommended-step next-step)
-               (if (> new-recommended-step recommended-step)
-                   (list new-state new-recommended-step new-recommended-step mt)
-                   (list new-state recommended-step recommended-step mt)))
-              (t (list new-state new-recommended-step new-recommended-step mt)))))))
-
-(defun close-to-monitor-adjust-step ()
-  (alter-value
-   (lambda (x)
-     (destructuring-bind (state next-step recommended-step monitor-time) x
-         (let ((current-time (ode-state-time state)))
-           (if (> (+ current-time next-step) (first monitor-time))
-               (iterator:continue
-                (list state
-                      (- (first monitor-time) current-time)
-                      recommended-step
-                      monitor-time))
-               (iterator:continue x)))))))
-
-(defun pop-monitor-time ()
-  (alter-value
-   (lambda (x)
-     (destructuring-bind (state next-step recommended-step monitor-time) x
-       (if (>= (ode-state-time state) (first monitor-time))
-           (iterator:continue
-            (list state next-step recommended-step (rest monitor-time)))
-           (iterator:continue x))))))
-
-(defun perform-monitoring (monitor)
-  (log-computation
-   (lambda (tag x)
-     (declare (ignore tag))
-     (destructuring-bind (state x y monitor-time) x
-         (declare (ignore x y))
-       (when (>= (ode-state-time state) (first monitor-time))
-         (funcall monitor state))))))
-
-(defun ode-evolve-finished ()
-  (finished-value
-   (lambda (x)
-     (destructuring-bind (p y z monitor-time) x
-       (declare (ignore p y z))
-       (null monitor-time)))
-   (lambda (x)
-     (declare (ignore x))
-     "ODE evolve finished")))
-
-(defun ode-evolve (method ode-function init-state monitor-time monitor ode-error)
-  (let ((dt (- (first monitor-time) (ode-state-time init-state))))
-    (fixed-point (combine-controls (perform-monitoring monitor)
-                                   (pop-monitor-time)
-                                   (ode-evolve-finished)
-                                   (close-to-monitor-adjust-step))
-                 (ode-next-step method ode-function ode-error)
-                 (list init-state
-                       dt
-                       dt
-                       monitor-time))))
-
-
-
-
-#|
-
+(defun duplicate-ode-state (ode-state)
+  (make-ode-state :time (ode-state-time ode-state)
+                  :value (duplicate-vector (ode-state-value ode-state))
+                  :rate (duplicate-vector (ode-state-rate ode-state))))
 
 (defstruct ode-step
   (requested 0.0d0) (performed 0.0d0) (recommended 0.0d0))
@@ -347,5 +211,3 @@ performed step, computation error etc. from ODE"))
 
 (defun ode-solve (function starting-time starting-value output-time &optional method)
   )
-
-|#

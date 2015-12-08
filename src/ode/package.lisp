@@ -1,16 +1,21 @@
 (in-package cl-user)
 
+(defpackage #:mobius.numeric.ode
+  (:nicknames #:numeric-ode)
+  (:use #:cl #:control #:optima #:fixed-point)
+  (:import-from #:mobius.utils #:%)
+  (:export #:ode-state #:ode-state-time #:ode-state-value #:ode-state-rate
+           #:ode-error #:ode-error-scale #:ode-error-tolerance
+           #:ode-attempt-step #:ode-perform-step
+           #:ode-step
+           #:ode-evolve))
+
+
 (defpackage #:mobius.numeric.runge-kutta
   (:nicknames #:numeric-runge-kutta)
-  (:use #:cl #:linear-base #:control #:numeric-helpers)
-  (:export #:ode-state #:ode-state-time #:ode-state-value
-           #:rk-tableau #:rk-a #:rk-b #:rk-c #:rk-c*
-           #:intermediate-time #:intermediate-value #:tableau-order
-           #:rk-data #:rk-k #:rk-tmp-value
-           #:runge-kutta #:runge-kutta-data #:runge-kutta-tableau
-           #:rk45ck-tableau
-           #:runge-kutta-45-cash-karp #:rk45ck
-           #:runge-kutta-update-k #:ode-accept-error-p))
+  (:use #:cl #:linear-base #:control #:numeric-helpers #:numeric-ode)
+  (:export #:make-tableau #:rk45ck-tableau #:tableau-order
+           #:runge-kutta))
 
 
 (defpackage #:mobius.numeric.trapezoid

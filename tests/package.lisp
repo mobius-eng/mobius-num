@@ -50,4 +50,4 @@
 
 (defpackage #:mobius.numeric.tests.ode
   (:nicknames #:num-tests-ode)
-  (:use #:cl #:numeric-helpers #:linear-base #:numeric-runge-kutta #:fiveam))
+  (:use #:cl #:numeric-helpers #:linear-base #:numeric-runge-kutta #:numeric-ode #:fiveam))
