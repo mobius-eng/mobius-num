@@ -6,7 +6,9 @@
   ((vector-length-mismatch-length1 :initarg :length1
                                    :reader vector-length-mismatch-length1)
    (vector-length-mismatch-length2 :initarg :length2
-                                   :reader vector-length-mismatch-length2)))
+                                   :reader vector-length-mismatch-length2))
+  (:documentation
+   "Condition raised when two vectors have mismatching lengths"))
 
 (defun check-vector-lengths (vec &rest more-vectors)
   "Tests if all vectors have the same length"
@@ -106,12 +108,13 @@ Does not allocate any extra space"
     (nil (l2-norm vector))
     ((list vector2)
      (declare (type (vector * *) vector2))
-     (apply #'check-vector-lengths vector other-vectors)
+     (check-vector-lengths vector vector2)
      (sqrt (loop for i below (length vector)
               sum (expt (the double-float
                              (- (aref vector i) (aref vector2 i)))
                         2))))
     (otherwise
+     (apply #'check-vector-lengths vector other-vectors)
      (sqrt
       (loop for i below (length vector)
          sum (expt (reduce #'- other-vectors
@@ -153,9 +156,8 @@ Where a  is a DOUBLE-FLOAT number and
        i
 p  is a  (VECTOR DOUBLE-FLOAT *)
  i
-MULT-ARG is a squence of CONS-cells
- (CONS a  p )
-        i  i
+MULT-ARG is a squence of CONS-cells (CONS a  p )
+                                           i  i
 "
   (declare (type (vector double-float *) v))
   (match mult-arg

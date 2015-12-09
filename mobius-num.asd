@@ -28,16 +28,7 @@
                               :serial t
                               :components ((:file "package")
                                            (:file "base")
-                                           (:file "bicg-stab2")
-                                           ;; (:file "gsl-linear")
-                                           ;; (:file "lingenerics")
-                                           ;; (:file "impl-numbers")
-                                           ;; (:file "impl-vectors")
-                                           ;; (:file "impl-arrays")
-                                           ;; (:file "linfunctions")
-                                           ;; (:file "bicg-stab")
-                                           ;; (:file "mvector")
-                                           ))
+                                           (:file "bicg-stab")))
                              (:module
                               "nonlinear"
                               :serial t

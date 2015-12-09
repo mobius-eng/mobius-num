@@ -3,11 +3,13 @@
 (defpackage #:mobius.numeric.nonlinear
   (:nicknames #:numeric-nonlinear)
   (:use #:cl)
-  (:export #:fsolve))
+  (:export #:fsolve)
+  (:documentation
+   "Generic solver of nonlinear equations"))
 
 (defpackage #:mobius.numeric.linsearch
   (:nicknames #:numeric-linsearch)
-  (:use #:cl #:numeric-helpers #:control #:fixed-point #:optima)
+  (:use #:cl #:numeric-helpers #:numeric-control #:numeric-fixed-point #:optima)
   (:export #:linsearch-value
            #:linsearch-value-lambda1
            #:linsearch-value-g1
@@ -20,7 +22,9 @@
            #:make-linsearch-control
            #:linsearch
            #:make-linsearch
-           #:linsearch-step))
+           #:linsearch-step)
+  (:documentation
+   "Line search algorithm to minimize function along a perdifined line"))
 
 (defpackage #:mobius.numeric.newton-raphson
   (:nicknames #:newton)

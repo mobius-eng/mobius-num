@@ -7,29 +7,37 @@
   ((linsearch-value-lambda1
     :initarg :lambda1
     :type double-float
-    :accessor linsearch-value-lambda1)
+    :accessor linsearch-value-lambda1
+    :documentation "Last lambda approximation")
    (linsearch-value-lambda2
     :initarg :lambda2
     :initform nil
     :type double-float
-    :accessor linsearch-value-lambda2)
+    :accessor linsearch-value-lambda2
+    :documentation "Second last lambda approximation")
    (linsearch-value-g1
     :initarg :g1
     :type double-float
-    :accessor linsearch-value-g1)
+    :accessor linsearch-value-g1
+    :documentation "g(lambda1)")
    (linsearch-value-g2
     :initarg :g2
     :initform nil
     :type double-float
-    :accessor linsearch-value-g2)
+    :accessor linsearch-value-g2
+    :documentation "g(lambda2)")
    (linsearch-g0
     :initarg :g0
     :type double-float
-    :accessor linsearch-value-g0)
+    :accessor linsearch-value-g0
+    :documentation "Initial value g(0)")
    (linsearch-dg0
     :initarg :dg0
     :type double-float
-    :accessor linsearch-value-dg0)))
+    :accessor linsearch-value-dg0
+    :documentation "D[g](0) - derivative of g(lambda) @lambda=0"))
+  (:documentation
+   "All pieces of data to represent line search computation"))
 
 (defun make-linsearch-value (g0 Dg0 g1 &optional (lambda1 0d0) lambda2 g2)
   "Construct the value for line search of the problem G(lambda) -> min"
@@ -98,7 +106,7 @@
   "Maximum number of iterations")
 
 (defun linsearch-finished-p (alpha gamma)
-  "Construct "
+  "Returns finished predicate for FINISHED-VALUE"
   (lambda (value)
     (with-accessors ((g0 linsearch-value-g0)
                      (lambda1 linsearch-value-lambda1)
@@ -155,6 +163,7 @@
 some parameters may change as more general computation progresses"))
 
 (defun compile-linsearch-control (linsearch-control)
+  "Produce the control based on linsearch-control description"
   (with-slots ((g linsearch-control-g)
                (gamma linsearch-control-gamma)
                (others linsearch-control-others)
@@ -223,7 +232,9 @@ some parameters may change as more general computation progresses"))
     :reader linsearch-value)
    (linsearch-control
     :initarg :control
-    :reader linsearch-control)))
+    :reader linsearch-control))
+  (:documentation
+   "Line search method"))
 
 
 (defun make-linsearch (&optional g gamma &rest other-controls)
@@ -241,6 +252,8 @@ some parameters may change as more general computation progresses"))
       (reinit-control! (linsearch-control linsearch) :g g :gamma gamma)))
 
 (defun linsearch-step (g)
+  "Returns the step function linsearch-value -> linsearch-value that improves
+the approximation"
   (lambda (value)
     (with-accessors ((lambda1 linsearch-value-lambda1)
                      (lambda2 linsearch-value-lambda2)
@@ -249,7 +262,6 @@ some parameters may change as more general computation progresses"))
                      (g0 linsearch-value-g0)
                      (Dg0 linsearch-value-dg0))
         value
-      ;; (format t "~&LINSEARCH: ~A~%" value)
       (match lambda2
         (nil
          (move-1->2! value)
@@ -264,83 +276,10 @@ some parameters may change as more general computation progresses"))
              value)))))))
 
 (defun linsearch (linsearch g g0 Dg0 g1 &key gamma (other-controls nil others-p))
+  "Perform line search"
   (apply #'reinit!
          linsearch g0 Dg0 g1
          (nconc `(:g ,g :gamma ,gamma)
                 (and others-p `(:other-controls ,other-controls))))
   (let ((stepper (linsearch-step g)))
     (fixed-point (linsearch-control linsearch) stepper (linsearch-value linsearch))))
-
-
-
-
-
-#|
-(defclass linsearch-control ()
-  ((linsearch-control-gamma
-    :initarg :gamma
-    :initform nil
-    :reader linsearch-control-gamma)
-   (linsearch-control-alpha
-    :initarg :alpha
-    :reader linsearch-control-alpha)))
-
-
-(defun make-linsearch-control (gamma &optional (alpha *linsearch-alpha*))
-  (make-instance 'linsearch-control
-    :alpha alpha
-    :gamma gamma))
-
-(defclass linsearch-control-newton-step (linsearch-control)
-  ())
-
-(defun make-linsearch-control-newton-step (&optional (alpha *linsearch-alpha*))
-  (make-instance 'linsearch-control-newton-step
-    :alpha alpha
-    :gamma nil))
-
-(defmethod linsearch-control-gamma ((obj linsearch-control-newton-step))
-  (lambda (x)
-    (* -2d0 x g0)))
-
-(defun reinit-linsearch-control! (control g0)
-  (setf (linsearch-control-g0 control) g0))
-
-(defmethod apply-control ((control linsearch-control) value)
-  (with-accessors ((lambda1 linsearch-value-lambda1)
-                   (g1 linsearch-value-g1))
-      value
-    (with-accessors ((g0 linsearch-control-g0)
-                     (gamma linsearch-control-gamma)
-                     (alpha linsearch-control-alpha))
-        control
-      (if (< g1 (+ g0 (* alpha (funcall gamma lambda1))))
-          (iterator:finished value)
-          (iterator:continue value)))))
-
-
-(defun limit-lambda (g)
-  (lambda (value)
-    (with-accessors ((lambda1 linsearch-value-lambda1)
-                     (lambda2 linsearch-value-lambda2)
-                     (g1 linsearch-value-g1))
-        value
-      (cond ((< lambda1 (* 0.1d0 lambda2))
-             (setf lambda1 (* 0.1d0 lambda2))
-             (setf g1 (funcall g lambda1))
-             (iterator:continue value :limit-lambda :min))
-            ((> lambda1 (* 0.5d0 lambda2))
-             (setf lambda1 (* 0.5d0 lambda2))
-             (setf g1 (funcall g lambda1))
-             (iterator:continue value :limit-lambda :max))
-            (t (iterator:continue value))))))
-
-(defun abs-limit-lambda (abs-lambda-min)
-  (lambda (value)
-    (with-accessors ((lambda1 linsearch-value-lambda1)) value
-      (< lambda1 abs-lambda-min))))
-
-
-
-
-|#

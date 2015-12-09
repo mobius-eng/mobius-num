@@ -67,8 +67,8 @@
    "Computation flow control"))
 
 (defpackage #:mobius.numeric.fixed-point
-  (:nicknames #:fixed-point)
-  (:use #:cl #:control)
+  (:nicknames #:numeric-fixed-point)
+  (:use #:cl #:numeric-control)
   (:export #:fixed-point)
   (:documentation
    "Fixed point algorithm using ITERATOR and NUMERIC-CONTROL"))
