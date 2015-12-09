@@ -21,39 +21,82 @@
 ;; ** Control primitives
 ;; *** Macro helpers
 (defmacro define-simple-constructor (class (&rest args))
-  (let ((kw-args (mapcan (lambda (x) (list (make-keyword x) x)) args)))
+  "Make simple constuctor with boa arguments for CLASS"
+  (let* ((only-args (remove-if (lambda (x) (eq x '&optional)) args))
+         (kw-args (mapcan (lambda (x) (list (make-keyword x) x)) only-args)))
     `(defun ,class (,@args)
        (make-instance ',class
          ,@kw-args))))
 
 ;; *** FINISHED-VALUE
 (defclass finished-value ()
-  ((finished-value-p :initarg :predicate :reader finished-value-p)
-   (finished-value-info :initarg :info-function :reader finished-value-info)))
+  ((finished-value-p
+    :initarg :predicate
+    :reader finished-value-p
+    :documentation "Value predicate to indicate that computation has finished")
+   (finished-value-info
+    :initarg :info-function
+    :reader finished-value-info
+    :documentation "Function of value to generate info to be added to
+iterator once FINISHED-VALUE-P returns T
+If NULL, no info will be added"))
+  (:documentation
+   "Controls if a computation has finished by testing the value"))
 
-(define-simple-constructor finished-value (predicate info-function))
+(define-simple-constructor finished-value (predicate &optional info-function))
 
 (defmethod apply-control ((control finished-value) value)
-  (if (funcall (finished-value-p control) value)
-      (iterator:finished value :finished-value (funcall (finished-value-info control) value))
-      (iterator:continue value)))
+  (with-accessors ((predicate finished-value-p)
+                   (info finished-value-info))
+      control
+    (if (funcall predicate value)
+        (if info
+            (iterator:finished value
+                               :finished-value (funcall info value))
+            (iterator:finished value))
+        (iterator:continue value))))
 
 ;; *** FAILED-VALUE
 (defclass failed-value ()
-  ((failed-value-p :initarg :predicate :reader failed-value-p)
-   (failed-value-info :initarg :info-function :reader failed-value-info)))
+  ((failed-value-p
+    :initarg :predicate
+    :reader failed-value-p
+    :documentation "Value predicate to indicate that computation has failed")
+   (failed-value-info
+    :initarg :info-function
+    :reader failed-value-info
+    :documentation "Function of value to generate info to be added to
+iterator once FAILED-VALUE-P returns T
+If NULL, no info will be added"))
+  (:documentation
+   "Controls if a computations has failed by testing the value"))
 
-(define-simple-constructor failed-value (predicate info-function))
+(define-simple-constructor failed-value (predicate &optional info-function))
 
 (defmethod apply-control ((control failed-value) value)
-  (if (funcall (failed-value-p control) value)
-      (iterator:failed value :failed-value (funcall (failed-value-info control) value))
-      (iterator:continue value)))
+  (with-accessors ((predicate failed-value-p)
+                   (info failed-value-info))
+      control
+    (if (funcall predicate value)
+        (if info
+            (iterator:failed value
+                             :failed-value (funcall info value))
+            (iterator:failed value))
+        (iterator:continue value))))
 
 ;; *** LIMIT-ITERATIONS
 (defclass limit-iterations ()
-  ((limit-iterations-max :initarg :max :reader limit-iterations-max)
-   (limit-iterations-performed :initform 0 :accessor limit-iterations-performed)))
+  ((limit-iterations-max
+    :initarg :max
+    :reader limit-iterations-max
+    :documentation "Max number of evaluations permitted")
+   (limit-iterations-performed
+    :initform 0
+    :accessor limit-iterations-performed
+    :documentation
+    "Internal storage of the number of evaluations already performed"))
+  (:documentation
+   "Control that fails computation if it exceeds max number of evaluations"))
 
 (define-simple-constructor limit-iterations (max))
 
@@ -74,7 +117,15 @@
 
 ;; *** LOG-COMPUTATION
 (defclass log-computation ()
-  ((log-function :initarg :log-function :reader log-function)))
+  ((log-function
+    :initarg :log-function
+    :reader log-function
+    :documentation "Function to log the computation process.
+Accepts two arguments: (TAG VALUE)
+TAG is either :INIT or :APPLY indicating at which point it was called
+VALUE is ITERATOR's value passed."))
+  (:documentation
+   "Control that logs the progress of computation"))
 
 (define-simple-constructor log-computation (log-function))
 
@@ -88,8 +139,12 @@
 
 ;; *** LOG-TO-INFO
 (defclass log-to-info ()
-  ((log-to-info-function :initarg :log-function :reader log-to-info-function)))
-
+  ((log-to-info-function
+    :initarg :log-function
+    :reader log-to-info-function
+    :documentation "Log the progress into ITERATOR's info"))
+  (:documentation
+   "Control that logs the progess of computation into ITERATOR's info"))
 
 (define-simple-constructor log-to-info (log-function))
 
@@ -99,13 +154,35 @@
 
 ;; *** CONVERGED-VALUE
 (defclass converged-value ()
-  ((converged-value-close-p :initarg :close-p :reader converged-value-close-p)
-   (converged-value-copy :initarg :copy :reader converged-value-copy)
-   (converged-value-last :initform nil :accessor converged-value-last)
-   (converged-value-info :initarg :info-function :reader converged-value-info)))
+  ((converged-value-close-p
+    :initarg :close-p
+    :reader converged-value-close-p
+    :documentation "Predicate that checks if two values are close enough
+for the sequence to be considered convergent")
+   (converged-value-copy
+    :initarg :copy
+    :reader converged-value-copy
+    :documentation "Reliably copy the value: the value itself might be
+detroyed during the computation, this function must be able to copy it
+to reliably compare previus and current value in the sequence")
+   (converged-value-last
+    :initform nil
+    :accessor converged-value-last
+    :documentation
+    "Internal: stores the previous value (copied) of the sequence")
+   (converged-value-info
+    :initarg :info-function
+    :initform nil
+    :reader converged-value-info
+    :documentation "Function of value for the ITERATOR's info to be added
+once converged"))
+  (:documentation
+   "Controls if the sequence of values is converged (Cauchy criteria)
+Since the value might change destructively, it requires COPY function
+to store the copy of the previous value in the sequence"))
 
 
-(define-simple-constructor converged-value (close-p copy info-function))
+(define-simple-constructor converged-value (close-p copy &optional info-function))
 
 (defmethod init-control ((control converged-value) init-value)
   (setf (converged-value-last control)
@@ -113,26 +190,38 @@
 
 
 (defmethod apply-control ((control converged-value) value)
-  (if (funcall (converged-value-close-p control) value (converged-value-last control))
-      (iterator:finished value
-                         :converged-value (funcall (converged-value-info control) value))
-      (progn
-        (setf (converged-value-last control)
-              (funcall (converged-value-copy control) value))
-        (iterator:continue value))))
-
+  (with-accessors ((close-p converged-value-close-p)
+                   (copy converged-value-copy)
+                   (info converged-value-info)
+                   (last-value converged-value-last))
+      control
+    (if (funcall close-p last-value value)
+        (if info
+            (iterator:finished value :converged-value (funcall info value))
+            (iterator:finished value))
+        (progn
+          (setf las-value (funcall copy value))
+          (iterator:continue value)))))
 
 ;; *** CONVERGED-NUMBER
 (defclass converged-number ()
-  ((converged-number-tolerance :initarg :tolerance :reader converged-number-tolerance)
-   (converged-number-last :initform nil :accessor converged-number-last)))
+  ((converged-number-tolerance
+    :initarg :tolerance
+    :reader converged-number-tolerance
+    :documentation
+    "Absolute tolerance within which two numbers are considered to be the same")
+   (converged-number-last
+    :initform nil
+    :accessor converged-number-last
+    :documentation "Internal storage of the previous item in the sequence"))
+  (:documentation
+   "Control that will finish the computation if the number sequence converges.
+This is a simplified (for numbers) version of CONVERGED-VALUE"))
 
 (define-simple-constructor converged-number (tolerance))
 
-
 (defmethod init-control ((control converged-number) init-value)
   (setf (converged-number-last control) init-value))
-
 
 (defmethod apply-control ((control converged-number) value)
   (if (< (abs (- value (converged-number-last control)))
@@ -146,7 +235,12 @@
 (defclass alter-value ()
   ((alter-value-function
     :initarg :function
-    :reader alter-value-function)))
+    :reader alter-value-function
+    :documentation
+    "Function that alters the value. Must return ITERATOR"))
+  (:documentation
+   "Control that alters the value if, for example, it is outside
+of some boundaries. The behaviour is control by FUNCTION."))
 
 (define-simple-constructor alter-value (function))
 
@@ -156,8 +250,16 @@
 ;; ** Combinators on controls
 ;; *** Most general control
 (defclass control ()
-  ((control-init-function :initarg :init :accessor control-init-function)
-   (control-apply-function :initarg :apply :accessor control-apply-function)))
+  ((control-init-function
+    :initarg :init
+    :accessor control-init-function
+    :documentation "A generic control init function")
+   (control-apply-function
+    :initarg :apply
+    :accessor control-apply-function
+    :documentation "A generic control apply function"))
+  (:documentation
+   "A generic control class. It is used to combine other controls."))
 
 (define-simple-constructor control (init apply))
 
@@ -167,7 +269,7 @@
 (defmethod apply-control ((control control) value)
   (funcall (control-apply-function control) value))
 ;; *** Combination
-
+;; **** Reduction with short-circuiting
 (defun reduced (x) (cons 'reduced x))
 (defun reduced-p (x) (and (consp x) (eq (car x) 'reduced)))
 (defun reduced-value (x) (cdr x))
@@ -178,8 +280,10 @@
       (match list
         (nil init-state)
         ((list* hd tl) (reduce-list function (funcall function init-state hd) tl)))))
-
+;; **** Control combination
 (defun combine-controls (&rest controls)
+  "Combine controls forming a generic control. Controls are applied
+in order they appear"
   (flet ((init-function (init-value)
            (mapc (lambda (control)
                    (init-control control init-value))

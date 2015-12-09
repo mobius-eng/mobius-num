@@ -20,25 +20,19 @@
 
 (defpackage #:mobius.numeric.trapezoid
   (:nicknames #:numeric-trapezoid)
-  (:use #:cl #:linear-base #:control #:numeric-nonlinear #:newton #:ad #:numeric-helpers)
+  (:use #:cl #:linear-base #:control #:numeric-nonlinear
+        #:newton #:ad #:numeric-helpers)
   (:shadowing-import-from #:ad
                           #:+ #:- #:* #:/
                           #:sin #:cos #:tan #:asin #:acos #:atan
                           #:exp #:log #:expt #:sqrt
                           #:sinh #:cosh #:tanh
                           #:= #:< #:> #:<= #:>=
-                          #:zerop #:plusp #:minusp
-                          ;;#:literal-function
-                          ;;#:literal-vector
-                          ;; #:D #:diff #:gradient-f #:jacobian*vector #:jacobian*vector-save
-                          ;;#:directional-derivative-f
-                          ;;#:partial
-                          ;;#:comp
-                          ))
+                          #:zerop #:plusp #:minusp))
 
 ;; (defpackage mobius.numeric.ode
 ;;   (:nicknames #:ode)
-;;   (:use #:cl #:mobius.utils #:linop #:mobius.numeric.utils #:criteria)
+;;   (:use #:cl #:mobius.utils #:linop #:mobius.numeric.utils #:criteria)           
 ;;   (:import-from #:cl-num-utils #:num=)
 ;;   (:import-from #:alexandria #:with-gensyms)
 ;;   (:export #:ode

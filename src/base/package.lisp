@@ -4,7 +4,9 @@
   (:nicknames #:numeric-constants)
   (:use #:cl)
   (:export #:+infinity
-           #:-infinity))
+           #:-infinity)
+  (:documentation
+   "Basic mathematical and physical constants"))
 
 (defpackage #:mobius.numeric.helpers
   (:nicknames #:numeric-helpers)
@@ -14,13 +16,15 @@
            #:cubic-extremum-1 #:cubic-extremum-2
            #:linear-approximation
            #:quad-approximation
-           #:cubic-approximation))
+           #:cubic-approximation)
+  (:documentation
+   "Simple helper functions on numbers"))
 
 ;; have to by-pass the lock on CONTINUE
 ;; do not import: use it with ITERATOR: prefix
 (defpackage #:mobius.numeric.iterator
   (:use #:cl #:optima)
-  (:nicknames #:iterator)
+  (:nicknames #:iterator #:numeric-iterator)
   (:shadow #:continue)
   (:export #:iterator
            #:continue
@@ -39,11 +43,13 @@
            #:->finished
            #:replace-value
            #:update-value
-           #:bind))
+           #:bind)
+  (:documentation
+   "Computation flow"))
 
 (defpackage #:mobius.numeric.control
   (:use #:cl #:optima)
-  (:nicknames #:control)
+  (:nicknames #:numeric-control)
   (:import-from #:alexandria #:make-keyword)
   (:export #:apply-control #:init-control
            #:define-simple-constructor
@@ -56,24 +62,14 @@
            #:converged-number
            #:alter-value
            #:control #:control-init-function #:control-apply-function
-           #:combine-controls))
-
-;; (defpackage #:mobius.numeric.criteria
-;;   (:use #:cl)
-;;   (:nicknames #:criteria)
-;;   (:import-from #:alexandria #:plist-alist)
-;;   (:export #:make-criteria
-;;            #:get-criteria-function
-;;            #:add-to-criteria
-;;            #:delete-from-criteria
-;;            #:criterium-arguments
-;;            #:compile-criterium
-;;            #:in-criterium))
-
-
+           #:combine-controls)
+  (:documentation
+   "Computation flow control"))
 
 (defpackage #:mobius.numeric.fixed-point
   (:nicknames #:fixed-point)
   (:use #:cl #:control)
-  (:export #:fixed-point))
+  (:export #:fixed-point)
+  (:documentation
+   "Fixed point algorithm using ITERATOR and NUMERIC-CONTROL"))
 

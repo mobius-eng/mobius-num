@@ -2,12 +2,16 @@
 ;; * Symbolic extension
 ;; ** Unary numerical operations
 (eval-when (:compile-toplevel :load-toplevel :execute)
- (defun make-unary-symbolic (tag num-fun)
-   (lambda (x)
-     (cond ((cl:numberp x) (funcall num-fun x))
-           (:else (list tag x))))))
+  (defun make-unary-symbolic (tag num-fun)
+    "Lift unary number function NUM-FUN into symbolic by adding TAG
+when applied to a symbolic argument"
+    (lambda (x)
+      (cond ((cl:numberp x) (funcall num-fun x))
+            (t (list tag x))))))
 
 (defmacro defsymb (fun tag op)
+  "Make unary function named FUN that will use OP for numeric argument and
+TAG the symbolic argument"
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (symbol-function ',fun)
            (make-unary-symbolic ',tag #',op))))
@@ -23,8 +27,6 @@
 (defsymb sinh sinh cl:sinh)
 (defsymb cosh cosh cl:cosh)
 (defsymb tanh tanh cl:tanh)
-
-;; (defsymb log log cl:log)
 
 ;; ** Binary numerical operations
 
@@ -43,24 +45,19 @@
          (cl:expt base power))
         (t `(expt ,base ,power))))
 
-
-
 ;; ** Multiarity numerical operations
 
-(defgeneric argument-type (x))
+(defgeneric argument-type (x)
+  (:documentation "Dispatch helper for X"))
+
 (defmethod argument-type (x) :else)
 (defmethod argument-type ((x number)) :number)
 (defmethod argument-type ((x symbol)) :symbol)
 (defmethod argument-type ((x function)) :function)
 (defmethod argument-type ((x cons)) :cons)
 
-;; (defun argument-type (x)
-;;   (cond ((cl:numberp x) :number)
-;;         ((cl:symbolp x) :symbol)
-;;         ((cl:functionp x) :function)
-;;         (t :else)))
-
 (defun add-functions (&rest more)
+  "Produce a function that is a sum of argument functions"
   (match more
     (nil nil)
     ((list x) x)
@@ -69,6 +66,7 @@
      (lambda (z) (apply #'+ (funcall f z) (mapcar (lambda (g) (funcall g z)) more))))))
 
 (defun mul-functions (&rest more)
+  "Produce a function that is a multiplication of argument functions"
   (match more
     (nil nil)
     ((list x) x)
@@ -76,9 +74,9 @@
     ((list* f more)
      (lambda (z) (apply #'* (funcall f z) (mapcar (lambda (g) (funcall g z)) more))))))
 
-
-
 (defun three-way-split (pred list)
+  "Split list in three ways base on PRED.
+PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
   (loop for x in list
      for p = (funcall pred x) then (funcall pred x)
      if (eq p :left)
@@ -90,12 +88,16 @@
      finally (return (list left middle right))))
 
 (defun separate-nums-funs (x)
+  "Predicate splitting the arguments into groups:
+ :LEFT - numbers
+ :MIDDLE - functions
+ :RIGHT - everything else"
   (cond ((cl:numberp x) :left)
         ((cl:functionp x) :middle)
         (t :right)))
 
-
 (defun two-way-split (predicate list)
+  "Two way split of the list based on predicate"
   (loop for x in list
      if (funcall predicate x)
      collect x into truths
@@ -104,17 +106,18 @@
      end
      finally (return (list truths falses))))
 
-(defun bin+ (&rest more)
+(defun bin+ (&optional (x nil x-p) (y nil y-p))
+  "Symbolic addition for max 2 arguments. Does some trivial simplification"
   (flet ((expr-from-arg-list (list)
            (destructuring-bind (nums others) (two-way-split #'cl:numberp list)
-             (let ((num (apply #'+ nums)))
+             (let ((num (apply #'cl:+ nums)))
                (cond ((null others) num)
                      ((cl:zerop num) (if (null (rest others)) (first others) `(+ ,@others)))
                      (t `(+ ,num ,@others)))))))
-    (match more
-      (nil 0)
-      ((list x) x)
-      ((list x y)
+    (match (list x-p y-p)
+      ((list nil nil) 0)
+      ((list t nil) x)
+      ((list t t)
        (match (list (argument-type x) x (argument-type y) y)
          ((list :number x :number y) (cl:+ x y))
          ((list :number 0 _ y) y)
@@ -134,18 +137,19 @@
          (otherwise `(+ ,x ,y)))))))
 
 
-(defun bin* (&rest more)
+(defun bin* (&optional (x nil x-p) (y nil y-p))
+  "Symbolic multiplication for max 2 arguments. Does some trivial simplification"
   (flet ((expr-from-arg-list (list)
            (destructuring-bind (nums others) (two-way-split #'cl:numberp list)
-             (let ((num (apply #'* nums)))
+             (let ((num (apply #'cl:* nums)))
                (cond ((null others) num)
                      ((cl:zerop num) 0)
                      ((cl:= num 1) (if (null (rest others)) (first others) `(* ,@others)))
                      (t `(* ,num ,@others)))))))
-    (match more
-      (() 1)
-      ((list x) x)
-      ((list x y)
+    (match (list x-p y-p)
+      ((list nil nil) 1)
+      ((list t nil) x)
+      ((list t t)
        (match (list (argument-type x) x (argument-type y) y)
          ((list :number x :number y) (cl:* x y))
          ((list :number 0 _ _) 0)
@@ -166,11 +170,10 @@
           (expr-from-arg-list (cons x u)))
          (otherwise `(* ,x ,y)))))))
 
-
-(defun bin- (&rest more)
+(defun bin- (x &optional (y nil y-p))
   (flet ((expr-from-arg-list (lead list)
            (destructuring-bind (nums others) (two-way-split #'cl:numberp list)
-             (let ((num (apply #'+ nums)) front)
+             (let ((num (apply #'cl:+ nums)) front)
                (cond ((cl:numberp lead) (setf num (cl:- lead num)) (setf front :number))
                      (t (setf front lead)))
                (cond ((null others)
@@ -186,13 +189,13 @@
                      (t (case front
                           ((:number) `(- ,num ,@others))
                           (t `(- ,front ,num ,@others)))))))))
-    (match more
-      ((list x)
+    (match y-p
+      (nil
        (match (list (argument-type x) x)
          ((list :number x) (cl:- x))
-         ((list :function f) (lambda (z) (- (funcall f z))))
+         ((list :function f) (lambda (z) (bin- (funcall f z))))
          (otherwise `(- ,x))))
-      ((list x y)
+      (t
        (match (list (argument-type x) x (argument-type y) y)
          ((list :number x :number y) (cl:- x y))
          ((list :number 0 _ y) (bin- y))
@@ -211,11 +214,11 @@
           (expr-from-arg-list (first p) (append (rest p) (list y))))
          (otherwise `(- ,x ,y)))))))
 
-
-(defun bin/ (&rest more)
+(defun bin/ (x &optional (y nil y-p))
+  "Symbolic division for max 2 arguments. Does some trivial simplifications"
   (flet ((expr-from-arg-list (lead list)
            (destructuring-bind (nums others) (two-way-split #'cl:numberp list)
-             (let ((num (apply #'* nums)) front)
+             (let ((num (apply #'cl:* nums)) front)
                (cond ((cl:numberp lead) (setf num (cl:/ lead num)) (setf front :number))
                      (t (setf front lead)))
                (cond ((null others)
@@ -228,13 +231,13 @@
                      (t (case front
                           ((:number) `(/ ,num ,@others))
                           (t `(/ ,front ,num ,@others)))))))))
-    (match more
-      ((list x)
+    (match y-p
+      (nil
        (match (list (argument-type x) x)
          ((list :number x) (cl:/ x))
-         ((list :function f) (lambda (z) (/ (funcall f z))))
+         ((list :function f) (lambda (z) (bin/ (funcall f z))))
          (otherwise `(/ ,x))))
-      ((list x y)
+      (t
        (match (list (argument-type x) x (argument-type y) y)
          ((list :number x :number y) (cl:/ x y))
          ((list :number 0 _ _) 0)
@@ -254,47 +257,26 @@
          (otherwise `(/ ,x ,y)))))))
 
 (defun + (&rest more)
-  (flet ((bin+ (x y)
-           (match (list (argument-type x) x (argument-type y) y)
-             ((list :number x :number y) (cl:+ x y))
-             ((list :number 0 _ y) y)
-             ((list _ x :number 0) x)
-             ((list :function x :function y) (add-functions x y))
-             ((list :function x _ y) (lambda (z) (+ (funcall x z) y)))
-             ((list _ x :function y) (lambda (z) (+ x (funcall y z))))
-             (otherwise `(+ ,x ,y)))))
-    (match more
-      (nil 0)
-      ((list x) x)
-      ((list x y) (bin+ x y))
-      (otherwise
-       (destructuring-bind (nums funs others)
-           (three-way-split #'separate-nums-funs more)
-         (let ((num (apply #'cl:+ nums))
-               (fun (apply #'add-functions funs)))
-           (cond ((not (null funs))
-                  (lambda (z) (apply #'+ num (funcall fun z) others)))
-                 ((null others) num)
-                 ((cl:zerop num) (if (rest others)
-                                     `(+ ,@others)
-                                     (first others)))
-                 (t `(+ ,num ,@others)))))))))
+  "Symbolic addition"
+  (match more
+    ((or nil (list x) (list x y)) (apply #'bin+ more))
+    (otherwise
+     (destructuring-bind (nums funs others)
+         (three-way-split #'separate-nums-funs more)
+       (let ((num (apply #'cl:+ nums))
+             (fun (apply #'add-functions funs)))
+         (cond ((not (null funs))
+                (lambda (z) (apply #'+ num (funcall fun z) others)))
+               ((null others) num)
+               ((cl:zerop num) (if (rest others)
+                                   `(+ ,@others)
+                                   (first others)))
+               (t `(+ ,num ,@others))))))))
 
 (defun - (x &rest more)
+  "Symbolic subtraction"
   (match more
-    (nil (cond ((cl:numberp x) (cl:- x))
-               ((cl:functionp x) (lambda (z) (- (funcall x z))))
-               (t `(- ,x))))
-    ((list y)
-     (match (list (argument-type x) x (argument-type y) y)
-       ((list :number x :number y) (cl:- x y))
-       ((list :number 0 _ y) (- y))
-       ((list _ x :number 0) x)
-       ((list :function f :function g) (lambda (z) (- (funcall f z)
-                                                      (funcall g z))))
-       ((list :function f _ y) (lambda (z) (- (funcall f z) y)))
-       ((list _ x :function g) (lambda (z) (- x (funcall g z))))
-       (otherwise `(- ,x ,y))))
+    ((or nil (list _)) (apply #'bin- x more))
     (otherwise
      (destructuring-bind (nums funs others)
          (three-way-split #'separate-nums-funs more)
@@ -326,49 +308,25 @@
                     (t `(- ,front ,num ,@others))))))))))
 
 (defun * (&rest more)
-  (flet ((bin* (x y)
-           (match (list (argument-type x) x (argument-type y) y)
-             ((list :number x :number y) (cl:* x y))
-             ((list :number 0 _ _) 0)
-             ((list _ _ :number 0) 0)
-             ((list :number 1 _ y) y)
-             ((list _ x :number 1) x)
-             ((list :function x :function y) (mul-functions x y))
-             ((list :function x _ y) (lambda (z) (* (funcall x z) y)))
-             ((list _ x :function y) (lambda (z) (* x (funcall y z))))
-             (otherwise `(* ,x ,y)))))
-    (match more
-      (nil 1)
-      ((list x) x)
-      ((list x y) (bin* x y))
-      (otherwise
-       (destructuring-bind (nums funs others)
-           (three-way-split #'separate-nums-funs more)
-         (let ((num (apply #'cl:* nums))
-               (fun (apply #'mul-functions funs)))
-           (cond ((cl:zerop num) 0)
-                 ((not (null funs))
-                  (lambda (z) (apply #'* num (funcall fun z) others)))
-
-                 ((null others) num)
-                 ((cl:= num 1) (if (rest others) `(* ,@others) (first others)))
-                 (t `(* ,num ,@others)))))))))
+  "Symbolic multiplication"
+  (match more
+    ((or nil (list _) (list _ _)) (apply #'bin* more))
+    (otherwise
+     (destructuring-bind (nums funs others)
+         (three-way-split #'separate-nums-funs more)
+       (let ((num (apply #'cl:* nums))
+             (fun (apply #'mul-functions funs)))
+         (cond ((cl:zerop num) 0)
+               ((not (null funs))
+                (lambda (z) (apply #'* num (funcall fun z) others)))
+               ((null others) num)
+               ((cl:= num 1) (if (rest others) `(* ,@others) (first others)))
+               (t `(* ,num ,@others))))))))
 
 (defun / (x &rest more)
+  "Symbolic division"
   (match more
-    (nil (cond ((cl:numberp x) (cl:/ x))
-               ((cl:functionp x) (lambda (z) (/ (funcall x z))))
-               (t `(/ ,x))))
-    ((list y)
-     (match (list (argument-type x) x (argument-type y) y)
-       ((list :number x :number y) (cl:/ x y))
-       ((list :number 1 _ y) (/ y))
-       ((list _ x :number 1) x)
-       ((list :function f :function g) (lambda (z) (/ (funcall f z)
-                                                      (funcall g z))))
-       ((list :function f _ y) (lambda (z) (/ (funcall f z) y)))
-       ((list _ x :function g) (lambda (z) (/ x (funcall g z))))
-       (otherwise `(/ ,x ,y))))
+    ((or nil (list _)) (apply #'bin/ x more))
     (otherwise
      (destructuring-bind (nums funs others)
          (three-way-split #'separate-nums-funs more)
@@ -399,7 +357,6 @@
                (t (case front
                     ((:num) `(/ ,num ,@others))
                     (t `(/ ,front ,num ,@others))))))))))
-
 
 ;; ** Comparison
 

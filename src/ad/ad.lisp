@@ -1,18 +1,33 @@
 (in-package mobius.numeric.ad)
 ;; * Automatic Differentiation
 
-(defvar *e* 0)
+;; ** Some book-keeping
+(defvar *e* 0
+  "Keeps track of what was differentiated")
 
+;; ** Dual numbers
 (defclass dual-number ()
-  ((epsilon :initarg :epsilon :reader epsilon)
-   (primal :initarg :primal :reader primal)
-   (perturbation :initarg :perturbation :reader perturbation)))
+  ((epsilon
+    :initarg :epsilon
+    :reader epsilon
+    :documentation "Book-keeping parameter")
+   (primal
+    :initarg :primal
+    :reader primal
+    :documentation "Main part of a number")
+   (perturbation
+    :initarg :perturbation
+    :reader perturbation
+    :documentation "Derivative part of a number")))
 
+;; Can print it just as a number, but it is useful to
+;; keep track of all perturbations
 (defmethod print-object ((obj dual-number) out)
     (cl:print-unreadable-object (obj out :type t)
       (cl:with-slots (epsilon primal perturbation) obj
         (format out "~D ~A ~A" epsilon primal perturbation))))
-
+;; ** Tape
+;; Not used so far
 (defclass tape ()
   ((epsilon :initarg :epsilon :reader epsilon)
    (primal :initarg :primal :reader primal)
@@ -22,11 +37,12 @@
    (sensitivity :initarg :sensitivity :accessor sensitivity)))
 
 (defmethod print-object ((obj tape) out)
-  (print-object (primal tape) out))
+  (print-object (primal obj) out))
 
-
-(defmethod print-object ((obj cl:number) out)
-  (cl:prin1 obj out))
+;; Surprisingly normal number does not have nice print-object
+;; implementation
+(defmethod print-object ((obj number) out)
+  (prin1 obj out))
 
 (defun dual-number-p (obj)
   (eq (type-of obj) 'dual-number))
@@ -35,15 +51,18 @@
   (eq (type-of obj) 'tape))
 
 (defun ad-type (x)
+  "Dispatch helper: either :DUAL or :TAPE"
   (cond ((dual-number-p x) :dual)
         ((tape-p x) :tape)))
 
 (defun compare-differentiable (x1 x2)
+  "Compare epsilons of two generalized numbers"
   (cond ((cl:< (epsilon x1) (epsilon x2)) :<)
         ((cl:< (epsilon x2) (epsilon x1)) :>)
         (t nil)))
 
 (defun new-tape (epsilon primal factors tapes)
+  "Construct new tape"
   (make-instance 'tape
                  :epsilon epsilon
                  :primal primal
@@ -53,6 +72,7 @@
                  :sensitivity 0))
 
 (defun new-dual-number (epsilon primal perturbation)
+  "Construct new dual number"
   (make-instance 'dual-number
                  :epsilon epsilon
                  :primal primal
@@ -145,8 +165,6 @@
                         (* (funcall df-dx1 (primal x1) x2)
                            (perturbation x1))))))
 
-
-
 (defmethod gen-lift-real*real->real ((x1 tape) (x2 dual-number) f df-dx1 df-dx2)
   (case (compare-differentiable x1 x2)
     ((:<) (new-dual-number (epsilon x2)
@@ -187,7 +205,7 @@
   (lambda (&rest xs)
     (if (null xs)
         (funcall f)
-        (reduce (lift-real*real->real f df-dx1 df-dx2) xs))))
+        (reduce (lift-real*real->real f df-dx1 df-dx2) xs)))) ;;what if xs = (x)
 
 (defun lift-real-n+1->real (f df-dx df-dx1 df-dx2)
   (lambda (&rest xs)
@@ -203,100 +221,120 @@
     (apply f (mapcar #'primal xs))))
 
 ;; (eval-when (:compile-toplevel :load-toplevel :execute)
-  (setf (symbol-function '+)
-        (lift-real-n->real #'sym:bin+ (lambda (x1 x2) 1) (lambda (x1 x2) 1)))
-  (setf (symbol-function '-)
-        (lift-real-n+1->real #'sym:bin-
-                             (lambda (x) -1) (lambda (x1 x2) 1)
-                             (lambda (x1 x2) -1)))
-  (setf (symbol-function '*)
-        (lift-real-n->real #'sym:bin* (lambda (x1 x2) x2) (lambda (x1 x2) x1)))
-  (setf (symbol-function '/)
-        (lift-real-n+1->real #'sym:bin/
-                             (lambda (x) (- (/ (expt x 2))))
-                             (lambda (x1 x2) (/ x2))
-                             (lambda (x1 x2) (- (/ x1 (expt x2 2))))))
+(setf (symbol-function '+)
+      (lift-real-n->real #'sym:bin+
+                         (lambda (x1 x2)
+                           (declare (ignore x1 x2))
+                           1)
+                         (lambda (x1 x2)
+                           (declare (ignore x1 x2))
+                           1)))
 
-  (setf (symbol-function 'sqrt) (lift-real->real #'sym:sqrt(lambda (x) (/ 1 (* 2 (sqrt x))))))
-  (setf (symbol-function 'exp) (lift-real->real #'sym:exp (lambda (x) (exp x))))
+(setf (symbol-function '-)
+      (lift-real-n+1->real #'sym:bin-
+                           (lambda (x)
+                             (declare (ignore x))
+                             -1)
+                           (lambda (x1 x2)
+                             (declare (ignore x1 x2))
+                             1)
+                           (lambda (x1 x2)
+                             (declare (ignore x1 x2))
+                             -1)))
 
-  (defun log (x &optional base)
-    (funcall (lift-real->real (lambda (x) (sym:log x base))
-                              (lambda (x)
-                                (if (null base)
-                                    (/ x)
-                                    (/ (log (exp 1.0d0) base) x))))
-             x))
+(setf (symbol-function '*)
+      (lift-real-n->real #'sym:bin*
+                         (lambda (x1 x2) (declare (ignore x1)) x2)
+                         (lambda (x1 x2) (declare (ignore x2)) x1)))
 
-  (setf (symbol-function 'expt)
-        (lift-real*real->real #'sym:expt
-                              (lambda (x1 x2)
-                                (let ((new-exp (- x2 1)))
-                                  (if (cl:= new-exp 1)
-                                      (* x2 x1)
-                                      (* x2 (expt x1 new-exp)))))
-                              (lambda (x1 x2) (* (log x1) (expt x1 x2)))))
+(setf (symbol-function '/)
+      (lift-real-n+1->real #'sym:bin/
+                           (lambda (x) (- (/ (expt x 2))))
+                           (lambda (x1 x2) (declare (ignore x1)) (/ x2))
+                           (lambda (x1 x2) (- (/ x1 (expt x2 2))))))
+
+(setf (symbol-function 'sqrt)
+      (lift-real->real #'sym:sqrt (lambda (x) (/ 1 (* 2 (sqrt x))))))
+
+(setf (symbol-function 'exp) (lift-real->real #'sym:exp (lambda (x) (exp x))))
+
+(defun log (x &optional base)
+  (funcall (lift-real->real (lambda (x) (sym:log x base))
+                            (lambda (x)
+                              (if (null base)
+                                  (/ x)
+                                  (/ (log (exp 1.0d0) base) x))))
+           x))
+
+(setf (symbol-function 'expt)
+      (lift-real*real->real #'sym:expt
+                            (lambda (x1 x2)
+                              (let ((new-exp (- x2 1)))
+                                (if (cl:= new-exp 1)
+                                    (* x2 x1)
+                                    (* x2 (expt x1 new-exp)))))
+                            (lambda (x1 x2) (* (log x1) (expt x1 x2)))))
 ;;  )
 
 ;; (eval-when (:compile-toplevel :load-toplevel :execute)
-  (setf (symbol-function 'sin)
-        (lift-real->real #'sym:sin (lambda (x) (cos x))))
+(setf (symbol-function 'sin)
+      (lift-real->real #'sym:sin (lambda (x) (cos x))))
 
-  (setf (symbol-function 'cos)
-        (lift-real->real #'sym:cos (lambda (x) (- (sin x)))))
+(setf (symbol-function 'cos)
+      (lift-real->real #'sym:cos (lambda (x) (- (sin x)))))
 
-  (setf (symbol-function 'tan)
-        (lift-real->real #'sym:tan (lambda (x) (+ 1 (expt (tan x) 2)))))
+(setf (symbol-function 'tan)
+      (lift-real->real #'sym:tan (lambda (x) (+ 1 (expt (tan x) 2)))))
 
-  (setf (symbol-function 'asin)
-        (lift-real->real #'sym:asin (lambda (x) (/ 1 (sqrt (- 1 (expt x 2)))))))
+(setf (symbol-function 'asin)
+      (lift-real->real #'sym:asin (lambda (x) (/ 1 (sqrt (- 1 (expt x 2)))))))
 
-  (setf (symbol-function 'acos)
-        (lift-real->real #'sym:acos (lambda (x) (- (/ 1 (sqrt (- 1 (expt x 2))))))))
+(setf (symbol-function 'acos)
+      (lift-real->real #'sym:acos (lambda (x) (- (/ 1 (sqrt (- 1 (expt x 2))))))))
 
-  (setf (symbol-function 'atan)
-        (lift-real->real #'sym:atan (lambda (x) (/ 1 (+ 1 (expt x 2))))))
+(setf (symbol-function 'atan)
+      (lift-real->real #'sym:atan (lambda (x) (/ 1 (+ 1 (expt x 2))))))
 
-  (setf (symbol-function 'sinh)
-        (lift-real->real #'sym:sinh (lambda (x) (cosh x))))
+(setf (symbol-function 'sinh)
+      (lift-real->real #'sym:sinh (lambda (x) (cosh x))))
 
-  (setf (symbol-function 'cosh)
-        (lift-real->real #'sym:cosh (lambda (x) (sinh x))))
+(setf (symbol-function 'cosh)
+      (lift-real->real #'sym:cosh (lambda (x) (sinh x))))
 
-  (setf (symbol-function 'tanh)
-        (lift-real->real #'sym:tanh (lambda (x) (- 1 (expt (tanh x) 2)))))
+(setf (symbol-function 'tanh)
+      (lift-real->real #'sym:tanh (lambda (x) (- 1 (expt (tanh x) 2)))))
 
-  (setf (symbol-function '=)
-        (lift-real-n->boolean #'sym:=))
+(setf (symbol-function '=)
+      (lift-real-n->boolean #'sym:=))
 
-  (setf (symbol-function '<)
-        (lift-real-n->boolean #'sym:<))
+(setf (symbol-function '<)
+      (lift-real-n->boolean #'sym:<))
 
-  (setf (symbol-function '>)
-        (lift-real-n->boolean #'sym:>))
+(setf (symbol-function '>)
+      (lift-real-n->boolean #'sym:>))
 
-  (setf (symbol-function '<=)
-        (lift-real-n->boolean #'sym:<=))
+(setf (symbol-function '<=)
+      (lift-real-n->boolean #'sym:<=))
 
-  (setf (symbol-function '>=)
-        (lift-real-n->boolean #'sym:>=))
+(setf (symbol-function '>=)
+      (lift-real-n->boolean #'sym:>=))
 
-  (setf (symbol-function 'zerop)
-        (lift-real-n->boolean #'sym:zerop))
+(setf (symbol-function 'zerop)
+      (lift-real-n->boolean #'sym:zerop))
 ;; )
 
 ;; (eval-when (:compile-toplevel :load-toplevel :execute)
-  (setf (symbol-function 'plusp)
-        (lift-real-n->boolean #'sym:plusp))
+(setf (symbol-function 'plusp)
+      (lift-real-n->boolean #'sym:plusp))
 
-  (setf (symbol-function 'minusp)
-        (lift-real-n->boolean #'sym:minusp))
+(setf (symbol-function 'minusp)
+      (lift-real-n->boolean #'sym:minusp))
 
-  (setf (symbol-function 'numberp)
-        (lift-real-n->boolean #'cl:numberp))
+(setf (symbol-function 'numberp)
+      (lift-real-n->boolean #'cl:numberp))
 
-  (setf (symbol-function 'varibale-p)
-        (lift-real-n->boolean #'cl:symbolp))
+(setf (symbol-function 'varibale-p)
+      (lift-real-n->boolean #'cl:symbolp))
 ;; )
 
 
@@ -306,11 +344,11 @@
 
 
 (defun literal-vector (symbol length)
-  (cl:make-array
+  (make-array
    length
    :initial-contents
    (loop for i below length
-        collect (cl:intern (format nil "~A^~D" symbol i)))))
+        collect (intern (format nil "~A^~D" symbol i)))))
 
 (defun forward-mode (map-independent map-dependent f x x-perturbation)
   (cl:incf *e*)
@@ -345,10 +383,10 @@
 
 (defun D (f)
   (lambda (x)
-    (forward-mode (lambda (f x perturbation)
-                    (funcall f x perturbation))
-                  (lambda (f y-forward)
-                    (funcall f y-forward))
+    (forward-mode (lambda (g x perturbation)
+                    (funcall g x perturbation))
+                  (lambda (g y-forward)
+                    (funcall g y-forward))
                   f
                   x
                   1)))
@@ -400,21 +438,21 @@ This function cannot be applied to symbolic data!"
   df-dest)
 
 (defun update-vector (v i x)
-  (let ((v1 (cl:make-array (cl:length v) :initial-contents v)))
+  (let ((v1 (make-array (length v) :initial-contents v)))
     (setf (cl:svref v1 i) x)
     v1))
 
 (defun gradient-f (f)
   (lambda (x)
-    (cl:map 'cl:simple-vector
-            (lambda (i)
-              (diff (lambda (xi) (funcall f (update-vector x i xi)))
-                    (cl:svref x i)))
-            (iota (cl:length x)))))
+    (map 'simple-vector
+         (lambda (i)
+           (diff (lambda (xi) (funcall f (update-vector x i xi)))
+                 (svref x i)))
+         (iota (length x)))))
 
 (defun partial (n f)
   (lambda (v)
-    (diff (lambda (x) (f (update-vector v n x))) (svref v n))))
+    (diff (lambda (x) (funcall f (update-vector v n x))) (svref v n))))
 
 
 (defun comp (f &rest more)
