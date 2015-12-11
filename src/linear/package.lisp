@@ -17,7 +17,8 @@
            #:negate-vector!
            #:matrix-mul #:matrix-mul-gen
            #:matrix-mul->function
-           #:solve-linear)
+           #:solve-linear
+           #:check-vector-lengths)
   (:documentation
    "Basic function on vectors"))
 
@@ -26,13 +27,11 @@
   (:use #:cl #:optima
         #:numeric-linear-base #:numeric-control
         #:numeric-fixed-point #:numeric-helpers)
+  (:import-from #:mobius.utils #:%)
   (:export 
-           #:rho-is-zero #:r0*v-is-zero
            #:bicg-stab-value #:bicg-stab-vector-length
-           #:bicg-stab-control
-           #:*bicg-stab-tolerance* #:*bicg-stab-max-iterations*
+           #:*bicg-stab-tolerance* #:*bicg-stab-max-iter-coeff*
            #:bicg-stab
-           #:make-bicg-stab-step
            #:bicg-stab-solve
            #:bicg-stab-solution #:bicg-stab-residual)
   (:documentation "BiCG Stabilized method of solving set of linear equations"))

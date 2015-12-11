@@ -1,5 +1,15 @@
 (in-package mobius.numeric.fixed-point)
 
+
+(defun iterate (control x0)
+  (let ((y0 (iterator:continue x0)))
+    (init-control control y0)
+    (loop for y = (apply-control control y0) then (apply-control control y)
+       unless (iterator:continue-p y)
+       return y
+       end)))
+
+
 (defun fixed-point (control f x0)
   "Fixed point method solving x=f(x) starting from x0.
 CONTROL is an object implementing control protocol:

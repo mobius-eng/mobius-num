@@ -21,7 +21,7 @@
 
 (defpackage #:mobius.numeric.tests.linear
   (:nicknames #:num-tests-linear)
-  (:use #:cl #:control #:mobius.numeric.linear-base
+  (:use #:cl #:numeric-control #:mobius.numeric.linear-base
         #:mobius.numeric.bicg-stab #:fiveam #:numeric-helpers)
   (:import-from #:cl-num-utils #:num=))
 

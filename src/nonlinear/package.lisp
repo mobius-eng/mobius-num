@@ -28,11 +28,12 @@
 
 (defpackage #:mobius.numeric.newton-raphson
   (:nicknames #:newton)
-  (:use #:cl #:optima #:mobius.utils #:linear-base #:bicg-stab
-        #:fixed-point #:control #:numeric-helpers
+  (:use #:cl #:optima #:mobius.utils #:numeric-linear-base
+        #:numeric-bicg-stab
+        #:numeric-fixed-point #:numeric-control #:numeric-helpers
         #:numeric-linsearch
         #:numeric-nonlinear)
-  (:shadowing-import-from #:ad
+  (:shadowing-import-from #:numeric-ad
                           #:+ #:- #:* #:/
                           #:sin #:cos #:tan #:asin #:acos #:atan
                           #:exp #:log #:expt #:sqrt

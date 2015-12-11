@@ -69,7 +69,7 @@
 (defpackage #:mobius.numeric.fixed-point
   (:nicknames #:numeric-fixed-point)
   (:use #:cl #:numeric-control)
-  (:export #:fixed-point)
+  (:export #:fixed-point #:iterate)
   (:documentation
    "Fixed point algorithm using ITERATOR and NUMERIC-CONTROL"))
 
