@@ -27,7 +27,7 @@
    "Line search algorithm to minimize function along a perdifined line"))
 
 (defpackage #:mobius.numeric.newton-raphson
-  (:nicknames #:newton)
+  (:nicknames #:numeric-newton)
   (:use #:cl #:optima #:mobius.utils #:numeric-linear-base
         #:numeric-bicg-stab
         #:numeric-fixed-point #:numeric-control #:numeric-helpers

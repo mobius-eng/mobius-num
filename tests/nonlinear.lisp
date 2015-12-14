@@ -4,6 +4,8 @@
 
 (in-suite nonlinear-suite)
 
+
+
 (test nonlinear-linsearch
   "Line search for equation
  
@@ -20,14 +22,44 @@ starting from x = 1"
         (Dg0 -1d0))
     (let ((g1 (funcall g 1.0d0))
           (linsearch (make-linsearch)))
-      (let ((result (linsearch linsearch g g0 Dg0 g1 :gamma #'newton-step-gamma)))
-        (is (iterator:finished-p result))
-        (let ((val (iterator:value result)))
-          (is (> (linsearch-value-lambda1 val) *linsearch-abs-lambda-min*))
-          (is (<= (linsearch-value-lambda1 val) 1.0d0 ))
-          (is (< (linsearch-value-g1 val) g0)))))))
+      (multiple-value-bind (final-lambda successful-p final-g)
+          (linsearch linsearch g #'newton-step-gamma g0 Dg0 g1)
+        (is (eq successful-p t))
+        (is (> final-lambda *linsearch-abs-lambda-min*))
+        (is (<= final-lambda 1.0d0 ))
+        (is (< final-g g0))))))
+
 
 ;; (run! 'nonlinear-linsearch)
+
+
+(test nonlinear-linsearch-no-action
+  "Line search for equation
+ 
+     ___
+   \/ x    = x
+
+starting from x = 2: should take the full step"
+  (let ((g (lambda (lmbda)
+             (let* ((x-old 2.0d0)
+                    (p -0.9061637d0)
+                    (x-new (+ x-old (* lmbda p)))
+                    (y (- (sqrt x-new) x-new)))
+               (* 0.5 y y))))
+        (g0 0.1715729d0)
+        (Dg0 -0.3431458d0))
+    (let ((g1 (funcall g 1.0d0))
+          (linsearch (make-linsearch)))
+      (multiple-value-bind (final-lambda successful-p final-g)
+          (linsearch linsearch g #'newton-step-gamma g0 Dg0 g1)
+        (is (eq successful-p t))
+        (is (> final-lambda *linsearch-abs-lambda-min*))
+        (is (<= final-lambda 1.0d0 ))
+        (is (< final-g g0))
+        (is (= final-lambda 1.0d0))))))
+
+
+;; (run! 'nonlinear-linsearch-no-action)
 
 
 (test nonlinear-vector

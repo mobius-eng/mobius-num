@@ -5,7 +5,6 @@
        (ode-function (let ((v (make-vector 1))
                            (n 0))
                        (lambda (time value)
-                         (declare (ignore time))
                          (incf n)
                          (format t "~&ODE-FUNCTION CALL #~D~%" n)
                          (format t "~Tt=~F v=~A~%" time value)

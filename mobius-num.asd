@@ -29,15 +29,13 @@
                               :components ((:file "package")
                                            (:file "base")
                                            (:file "bicg-stab2")))
-                             ;; (:module
-                             ;;  "nonlinear"
-                             ;;  :serial t
-                             ;;  :components ((:file "package")
-                             ;;               (:file "linsearch")
-                             ;;               (:file "newton")
-                             ;;               ;; (:file "diff")
-                             ;;               ;; (:file "fsolve")
-                             ;;              ))
+                             (:module
+                              "nonlinear"
+                              :serial t
+                              :components ((:file "package")
+                                           (:file "nonlinear")
+                                           (:file "linsearch")
+                                           (:file "newton")))
                              ;; (:module
                              ;;  "ode"
                              ;;  :serial t
@@ -46,19 +44,4 @@
                              ;;               (:file "crank-nicolson")))
                              ;;  (:file "package")
                              )
-                ))
-  )
-
-;; (asdf:defsystem #:mobius-num-tests
-;;   :serial t
-;;   :description "Tests and example of the use of numerical algorithms from MOBIUS-NUM"
-;;   :author "mobius-eng <Alexey.Cherkaev@gmail.com>"
-;;   :licence "LGPL v.3"
-;;   :version "0.0.1"
-;;   :depends-on (#:mobius-utils #:mobius-num #:fiveam)
-;;   :components ((:module
-;;                 "tests"
-;;                 :serial t
-;;                 :components ((:file "package")
-;;                              (:file "base")
-;;                              (:file "linear")))))
+                )))

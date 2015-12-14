@@ -59,10 +59,8 @@ is successful. Return value is ignored"))
   (let ((t0 (ode-state-time state)))
     (let ((init-attempt (list nil nil time-step))
           (control (combine-controls
-                    (finished-value #f(first %)
-                                    #f(rest %))
-                    (failed-value #f(= t0 (+ t0 (third %)))
-                                  #f(format nil "Too small step ~F" (third %))))))
+                    (finished-value #f(first %))
+                    (failed-value #f(= t0 (+ t0 (third %)))))))
       (match (fixed-point control
                           (ode-try-step-function method ode-function state ode-error)
                           init-attempt)
@@ -71,9 +69,8 @@ is successful. Return value is ignored"))
          (declare (ignore sccss-p))
          (ode-perform-step method ode-function state tried-step)
          (values state recommended-step))
-        ((iterator:iterator :status :failed
-                            :info info)
-         (error "Step is too small ~A" info))
+        ((iterator:iterator :status :failed)
+         (error "Step is too small"))
         (z (error "Unexpected result ~A" z))))))
 
 
@@ -95,21 +92,19 @@ is successful. Return value is ignored"))
      (destructuring-bind (state next-step recommended-step monitor-time) x
          (let ((current-time (ode-state-time state)))
            (if (> (+ current-time next-step) (first monitor-time))
-               (iterator:continue
-                (list state
-                      (- (first monitor-time) current-time)
-                      recommended-step
-                      monitor-time))
-               (iterator:continue x)))))))
+               (list state
+                     (- (first monitor-time) current-time)
+                     recommended-step
+                     monitor-time)
+               x))))))
 
 (defun pop-monitor-time ()
   (alter-value
    (lambda (x)
      (destructuring-bind (state next-step recommended-step monitor-time) x
        (if (>= (ode-state-time state) (first monitor-time))
-           (iterator:continue
-            (list state next-step recommended-step (rest monitor-time)))
-           (iterator:continue x))))))
+           (list state next-step recommended-step (rest monitor-time))
+           x)))))
 
 (defun perform-monitoring (monitor)
   (log-computation
@@ -125,10 +120,7 @@ is successful. Return value is ignored"))
    (lambda (x)
      (destructuring-bind (p y z monitor-time) x
        (declare (ignore p y z))
-       (null monitor-time)))
-   (lambda (x)
-     (declare (ignore x))
-     "ODE evolve finished")))
+       (null monitor-time)))))
 
 (defun ode-evolve (method ode-function init-state monitor-time monitor ode-error)
   (let ((dt (- (first monitor-time) (ode-state-time init-state))))

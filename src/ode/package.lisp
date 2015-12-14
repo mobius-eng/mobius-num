@@ -2,7 +2,7 @@
 
 (defpackage #:mobius.numeric.ode
   (:nicknames #:numeric-ode)
-  (:use #:cl #:control #:optima #:fixed-point)
+  (:use #:cl #:numeric-control #:optima #:numeric-fixed-point)
   (:import-from #:mobius.utils #:%)
   (:export #:ode-state #:ode-state-time #:ode-state-value #:ode-state-rate
            #:ode-error #:ode-error-scale #:ode-error-tolerance
@@ -13,7 +13,7 @@
 
 (defpackage #:mobius.numeric.runge-kutta
   (:nicknames #:numeric-runge-kutta)
-  (:use #:cl #:linear-base #:control #:numeric-helpers #:numeric-ode)
+  (:use #:cl #:numeric-linear-base #:numeric-control #:numeric-helpers #:numeric-ode)
   (:export #:make-tableau #:rk45ck-tableau #:tableau-order
            #:runge-kutta))
 

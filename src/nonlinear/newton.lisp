@@ -55,8 +55,7 @@
 
 (defun make-newton-control (tolerance max-iterations other-controls)
   (apply #'combine-controls
-         (finished-value (newton-finished-p tolerance)
-                         (lambda (value) (l2-norm (newton-value-f value))))
+         (finished-value (newton-finished-p tolerance))
          (limit-iterations max-iterations)
          other-controls))
 
@@ -87,7 +86,7 @@
       (format out "~A ~A" newton-value newton-linear-solver))))
 
 (defun make-newton (size &key
-                           (linear-solver (make-bicg-stab size))
+                           (linear-solver (bicg-stab size))
                            (tolerance *newton-tolerance*)
                            (max-iterations *newton-max-iterations*)
                            other-controls)
@@ -121,8 +120,7 @@
                    (lsearch newton-linsearch)
                    (lin-solver newton-linear-solver))
       method
-    (let (f-tmp-value
-          (safety-coeff 0.9d0))
+    (let (f-tmp-value)
       (lambda (value)
         (declare (type newton-value value))
         (with-accessors ((x newton-value-x)
@@ -143,17 +141,16 @@
              (unless successful-p
                (error 'linear-solver-failed :info `(:solution ,solution :info ,info)))
              (let ((g1 (ls-g 1d0)))
-               ;; (format t "~&NEWTON: ~A ~F~%" value g1)
-               (unless (< g1 (* safety-coeff g0))
-                   (let ((ls-result (linsearch lsearch #'ls-g g0 Dg0 g1 :gamma #'newton-step-gamma)))
-                     (unless (iterator:finished-p ls-result)
-                       (error 'linsearch-failed :value (iterator:value ls-result)))
-                     (setf g1 (linsearch-value-g1 (iterator:value ls-result)))))
-               (copy-vector-to! tmp-x x)
-               (copy-vector-to! f-tmp-value f-value)
-               (setf g0 g1)
-               (setf Dg0 (* -2d0 g1))
-               value))))))))
+               (multiple-value-bind (final-lambda successful-p final-g)
+                   (linsearch lsearch #'ls-g #'newton-step-gamma g0 Dg0 g1)
+                 (declare (ignore final-lambda))
+                 (unless successful-p
+                   (error 'linsearch-failed :value lsearch))
+                 (copy-vector-to! tmp-x x)
+                 (copy-vector-to! f-tmp-value f-value)
+                 (setf g0 final-g)
+                 (setf Dg0 (* -2d0 final-g))
+                 value)))))))))
 
 
 ;; ** Solver
