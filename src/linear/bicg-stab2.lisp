@@ -44,6 +44,7 @@
 
 (defun residual! (A x b r)
   "Calculate the residual r = b - A(x)"
+  (declare (optimize (speed 3) (safety 1) (debug 0)))
   (declare (type (vector double-float *) r)
            (type (vector * *) x b))
   (funcall A x r)
@@ -54,6 +55,7 @@
 (defun init-value! (value A x0 b)
   "Initialize value with approximation X0
 Residual (BICG-R) is initialized as b - A*x0"
+  (declare (optimize (speed 3) (safety 1) (debug 0)))
   (declare (type bicg-stab-value value))
   (setf (bicg-alpha value) 1.0d0)
   (setf (bicg-rho value) 1.0d0)
@@ -79,6 +81,23 @@ Residual (BICG-R) is initialized as b - A*x0"
    (lambda (x)
      (list "new-rho is zero" (cdr x)))))
 
+;; EXPERIMENTAL!!!
+(defun restart-if-rho-is-zero (tolerance)
+  (alter-value
+   (lambda (x)
+     (declare (optimize (speed 3) (debug 0) (safety 1)))
+     (destructuring-bind (new-rho . value) x
+       (if (almost-zero-p new-rho tolerance)
+           (progn
+             (copy-vector-to! (bicg-r value) (bicg-r0 value))
+             (set-vector-to-zero! (bicg-v value))
+             (set-vector-to-zero! (bicg-p value))
+             (setf (bicg-rho value) 1d0)
+             (setf (bicg-alpha value) 1d0)
+             (setf (bicg-omega value) 1d0)
+             (cons (dot (bicg-r value) (bicg-r0 value)) value))
+           x)))))
+
 (defun new-direction (A)
   "Get new direction
 
@@ -94,8 +113,12 @@ Residual (BICG-R) is initialized as b - A*x0"
 "
   (alter-value
    (lambda (x)
+     (declare (optimize (speed 3) (safety 1) (debug 0)))
      (destructuring-bind (new-rho . v) x
-       (let ((beta (* (/ new-rho (bicg-rho v)) (/ (bicg-alpha v) (bicg-omega v)))))
+       (declare (type double-float new-rho))
+       (let ((beta (* (/ new-rho (the double-float (bicg-rho v)))
+                      (/ (the double-float (bicg-alpha v))
+                         (the double-float (bicg-omega v))))))
          (linear-combination!
           beta (bicg-p v)
           (cons 1d0 (bicg-r v))
@@ -191,7 +214,7 @@ and
 
 ;; *** Computation parameters
 (defvar *bicg-stab-tolerance* 1.0d-8)
-(defvar *bicg-stab-max-iterat-coeff* 10)
+(defvar *bicg-stab-max-iter-coeff* 10)
 
 (defun bicg-stab-solve (value A b x0 &rest other-controls)
   (check-vector-lengths b x0)
@@ -203,13 +226,13 @@ and
   (init-value! value A x0 b)
   (let ((n (length b)))
     (let ((computation (combine-controls
-                        (new-rho) (new-rho-not-zero *bicg-stab-tolerance*)
+                        (new-rho) (restart-if-rho-is-zero *bicg-stab-tolerance*)
                         (new-direction A)
                         (r0*v) (r0*v-is-not-zero *bicg-stab-tolerance*)
                         (new-alpha-s) (finish-if-s-is-small *bicg-stab-tolerance*)
                         (new-t-omega-x-r A)
                         (finish-if-residual-is-small *bicg-stab-tolerance*)
-                        (limit-iterations (* n *bicg-stab-max-iterat-coeff*)
+                        (limit-iterations (* n *bicg-stab-max-iter-coeff*)
                                           #f(list "exceeded max iterations" %)))))
       (iterate (apply #'combine-controls computation other-controls)
                (iterator:continue value)

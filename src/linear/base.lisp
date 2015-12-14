@@ -45,7 +45,8 @@
   "Copy data from vector SOURCE (VECTOR * *) into
 DESTINATION (VECTOR DOUBLE-FLOAT *)"
   (declare (type (vector * *) source)
-           (type (vector double-float *) destination))
+           (type (vector double-float *) destination)
+           (optimize (speed 3) (safety 1) (debug 0)))
   (check-vector-lengths source destination)
   (let ((length (length source)))
     (dotimes (i length)
@@ -55,7 +56,8 @@ DESTINATION (VECTOR DOUBLE-FLOAT *)"
 (defun reduce-vector (op init vector)
   "Reduce VECTOR (from beginning) using OP and startibg with INIT"
   (declare (type (vector * *) vector)
-           (type (function (T T) T) op))
+           (type (function (T T) T) op)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (loop for x across vector
      do (setf init (funcall op init x)))
   init)
@@ -69,7 +71,8 @@ DESTINATION (VECTOR DOUBLE-FLOAT *)"
 
 Lengths of V W must be the same.
 Both vectors must be (VECTOR DOUBLE-FLOAT *)"
-  (declare (type (vector double-float *) v w))
+  (declare (type (vector double-float *) v w)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (check-vector-lengths v w)
   (loop for x across v
      for y across w
@@ -85,7 +88,8 @@ Both vectors must be (VECTOR DOUBLE-FLOAT *)"
     |/    i
 
 "
-  (declare (type (vector double-float *) v))
+  (declare (type (vector double-float *) v)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (sqrt (loop for x across v summing (* x x))))
 
 (defun square-vector (v)
@@ -96,14 +100,16 @@ Both vectors must be (VECTOR DOUBLE-FLOAT *)"
     i
 
 "
-  (declare (type (vector * *) v))
+  (declare (type (vector * *) v)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (loop for x across v summing (* x x)))
 
 
 (defun l2-norm-diff (vector &rest other-vectors)
   "l2-norm of difference between VECTOR and OTHER-VECTORS
 Does not allocate any extra space"
-  (declare (type (vector * *) vector))
+  (declare (type (vector * *) vector)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (match other-vectors
     (nil (l2-norm vector))
     ((list vector2)
@@ -137,12 +143,14 @@ X must be (VECTOR DOUBLE-FLOAT *)
 TOLERANCE must be DOUBLE-FLOAT
 "
   (declare (type double-float tolerance)
-           (type (vector double-float *) x))
+           (type (vector double-float *) x)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (< (l2-norm x) tolerance))
 
 (defun set-vector-to-zero! (v)
   "Set all components of double-float vector V to zero"
-  (declare (type (vector double-float) v))
+  (declare (type (vector double-float) v)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (dotimes (i (length v))
     (setf (aref v i) 0.0d0)))
 
@@ -159,7 +167,8 @@ p  is a  (VECTOR DOUBLE-FLOAT *)
 MULT-ARG is a squence of CONS-cells (CONS a  p )
                                            i  i
 "
-  (declare (type (vector double-float *) v))
+  (declare (type (vector double-float *) v)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (match mult-arg
     (nil nil)
     ((list (cons m arg))
@@ -189,6 +198,7 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
     v  <- k v  + c   u  + ... + c  u
      i       i    0   i          N  i
 "
+  (declare (optimize (speed 3) (debug 0) (safety 1)))
   (match coeff-vectors
     (nil (dotimes (i (length v))
            (setf (aref v i) (* k (aref v i)))))
@@ -207,13 +217,15 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
 
 (defun scale-vector! (factor vector &optional (result vector))
   "Multiply VECTOR by FACTOR. RESULT must be the vector of the same length"
+  (declare (optimize (speed 3) (debug 0) (safety 1)))
   (check-vector-lengths vector result)
   (dotimes (i (length vector))
     (setf (aref result i) (* factor (aref vector i)))))
 
 (defun negate-vector! (vector &optional (result vector))
   "Negate vector VECTOR (VECTOR DOUBLE-FLOAT *)"
-  (declare (type (vector double-float *) vector result))
+  (declare (type (vector double-float *) vector result)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (check-vector-lengths vector result)
   (dotimes (i (length vector))
     (setf (aref result i) (- (aref vector i)))))
@@ -222,21 +234,33 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
 (defun matrix-mul (matrix vector dest)
   "Multiply MATRIX by VECTOR putting the result into DEST.
 Optimized for DOUBLE-FLOAT vectors and matrices"
-  (declare (type (array double-float (* *)) matrix)
-           (type (vector double-float *)))
+  (declare (type (simple-array double-float (* *)) matrix)
+           (type (simple-array double-float *) vector dest)
+           (optimize (speed 3) (debug 0) (safety 0)))
   (destructuring-bind (rows cols) (array-dimensions matrix)
     (declare (type fixnum rows cols))
-    (dotimes (i rows)
-      (setf (aref dest i) 0.0d0)
-      (dotimes (j cols)
-        (incf (aref dest i) (* (aref matrix i j) (aref vector j)))))))
+    (let ((sum-tmp 0d0))
+      (declare (type double-float sum-tmp))
+      (dotimes (i rows)
+        (setf sum-tmp 0d0)
+        (dotimes (j cols)
+          (incf sum-tmp (* (aref matrix i j) (aref vector j))))
+        (setf (aref dest i) sum-tmp)))))
+
+;; (setf (aref dest i) 0.0d0)
+;;      (dotimes (j cols)
+;;        (setf (aref dest i) (+ (aref dest i)
+;;                               (* (aref matrix i j) (aref vector j))))
+;;        ;; (incf (aref dest i) (* (aref matrix i j) (aref vector j)))
+;;        )
 
 (defun matrix-mul-gen (matrix vector dest)
   "Generically multiply MATRIX by VECTOR putting the result into DEST.
 Works on all numerical types"
   (declare (type (array * (* *)) matrix)
            (type (vector * *) vector)
-           (type (vector double-float *) dest))
+           (type (vector double-float *) dest)
+           (optimize (speed 3) (debug 0) (safety 1)))
   (destructuring-bind (rows cols) (array-dimensions matrix)
     (declare (type fixnum rows cols))
     (dotimes (i rows)
@@ -248,7 +272,8 @@ Works on all numerical types"
   "Produce a function of a vector, application of which is equivalent
 to MATRIX multiplication by a vector"
   (lambda (x dest)
-    (matrix-mul-gen matrix x dest)))
+    (declare (optimize (speed 3)))
+    (matrix-mul matrix x dest)))
 
 
 ;; ** Generic Linear Solver

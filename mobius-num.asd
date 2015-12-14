@@ -14,9 +14,9 @@
                               :components ((:file "package")
                                            (:file "constants")
                                            (:file "helpers")
-                                           (:file "iterator")
-                                           (:file "control")
-                                           (:file "fixed-point")))
+                                           (:file "iterator2")
+                                           (:file "control2")
+                                           (:file "fixed-point2")))
                              (:module
                               "ad"
                               :serial t
@@ -28,16 +28,16 @@
                               :serial t
                               :components ((:file "package")
                                            (:file "base")
-                                           (:file "bicg-stab")))
-                             (:module
-                              "nonlinear"
-                              :serial t
-                              :components ((:file "package")
-                                           (:file "linsearch")
-                                           (:file "newton")
-                                           ;; (:file "diff")
-                                           ;; (:file "fsolve")
-                                           ))
+                                           (:file "bicg-stab2")))
+                             ;; (:module
+                             ;;  "nonlinear"
+                             ;;  :serial t
+                             ;;  :components ((:file "package")
+                             ;;               (:file "linsearch")
+                             ;;               (:file "newton")
+                             ;;               ;; (:file "diff")
+                             ;;               ;; (:file "fsolve")
+                             ;;              ))
                              ;; (:module
                              ;;  "ode"
                              ;;  :serial t
