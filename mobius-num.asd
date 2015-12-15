@@ -36,12 +36,12 @@
                                            (:file "nonlinear")
                                            (:file "linsearch")
                                            (:file "newton")))
-                             ;; (:module
-                             ;;  "ode"
-                             ;;  :serial t
-                             ;;  :components ((:file "package")
-                             ;;               (:file "ode")
-                             ;;               (:file "crank-nicolson")))
+                             (:module
+                              "ode"
+                              :serial t
+                              :components ((:file "package")
+                                           (:file "ode")
+                                           (:file "runge-kutta")))
                              ;;  (:file "package")
                              )
                 )))

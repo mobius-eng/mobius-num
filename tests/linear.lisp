@@ -10,8 +10,8 @@
     (let ((A (make-array (list size size) :element-type 'double-float))
           (b (make-vector size 'double-float))
           (b-sol (make-vector size 'double-float))
-          (x0 (make-vector size))
-          (x (make-vector size))
+          (x0 (make-vector size 'double-float))
+          (x (make-vector size 'double-float))
           (num-gen (let ((gen (gen-integer :min -10 :max 10)))
                      (lambda ()  (coerce (funcall gen) 'double-float))))
           (num-gen-pos (let ((gen (gen-integer :min 1 :max 10)))
@@ -45,61 +45,59 @@
                      *bicg-stab-tolerance*)))
               (progn
                 (format t "~&Problem: ~A~%" (first (iterator:value result)))
-                (format t "Final value:~%~A~%" (second (iterator:value result))))))))))
+                (format t "Final value:~%~A~%"
+                        (second (iterator:value result))))))))))
+
+;; (run! 'linear-bicg)
+
+;; (let ((*bicg-stab-max-iter-coeff* 20)
+;;       (*bicg-stab-tolerance* 1d-7))
+;;  (run! 'linear-bicg))
 
 
-(let ((*bicg-stab-max-iter-coeff* 20)
-      (*bicg-stab-tolerance* 1d-7))
- (run! 'linear-bicg))
-
-
-(time
- (let ((size 100))
-   (let ((A (make-array (list size size) :element-type 'double-float))
-         (b (make-vector size 'double-float))
-         (b-sol (make-vector size 'double-float))
-         (x0 (make-vector size 'double-float))
-         (x (make-vector size 'double-float))
-         (num-gen (let ((gen (gen-integer :min -10 :max 10)))
-                    (lambda ()  (coerce (funcall gen) 'double-float))))
-         (num-gen-pos (let ((gen (gen-integer :min 1 :max 10)))
-                        (lambda () (coerce (funcall gen) 'double-float))))
-         (log-control (let ((performed -1))
-                        (log-computation
-                         (lambda (tag x)
-                           (declare (ignore tag))
-                           (incf performed)
-                           (format t "Computation #~D~% residual = ~G~%"
-                                   performed (l2-norm (bicg-stab-residual x))))))))
-     (declare (ignorable log-control))
-     (dotimes (i size)
-       (setf (aref x i) (* 0.2d0 (funcall num-gen)))
-       (setf (aref x0 i) (* (aref x i) (+ 0.5d0 (random 1.0d0))))
-       (dotimes (j size)
-         (if (= i j)
-             (setf (aref A i j) (* 3.0d0 (funcall num-gen-pos)))
-             (setf (aref A i j) (* 0.2d0 (funcall num-gen-pos))))))
-     (let ((a-fun (matrix-mul->function A))
-           (bicg (bicg-stab-value size)))
-       (funcall a-fun x b)
-       ;; (format t "Problem:~%A = ~A~%x = ~A~%x0 = ~A~%b = ~A~%" A x x0 b)
-       (let ((result (bicg-stab-solve bicg a-fun b x0))) ; log-control
-         ;; (format t "Solution:~%~A~%" result)
-         (if (iterator:finished-p result)
-             (progn
-               (funcall a-fun (bicg-stab-solution (iterator:value result)) b-sol)
-               (format t "~&x residual = ~G~%"
-                       (l2-norm-diff (bicg-stab-solution (iterator:value result))
-                                     x))
-               (format t "~&b residual = ~G~%"
-                       (l2-norm-diff b b-sol)))
-             (progn
-               (format t "~&Problem: ~A~%" (first (iterator:value result)))
-               (format t "Final value:~%~A~%" (second (iterator:value result))))))))))
-
-
-
-
+;; (time
+;;  (let ((size 100))
+;;    (let ((A (make-array (list size size) :element-type 'double-float))
+;;          (b (make-vector size 'double-float))
+;;          (b-sol (make-vector size 'double-float))
+;;          (x0 (make-vector size 'double-float))
+;;          (x (make-vector size 'double-float))
+;;          (num-gen (let ((gen (gen-integer :min -10 :max 10)))
+;;                     (lambda ()  (coerce (funcall gen) 'double-float))))
+;;          (num-gen-pos (let ((gen (gen-integer :min 1 :max 10)))
+;;                         (lambda () (coerce (funcall gen) 'double-float))))
+;;          (log-control (let ((performed -1))
+;;                         (log-computation
+;;                          (lambda (tag x)
+;;                            (declare (ignore tag))
+;;                            (incf performed)
+;;                            (format t "Computation #~D~% residual = ~G~%"
+;;                                    performed (l2-norm (bicg-stab-residual x))))))))
+;;      (declare (ignorable log-control))
+;;      (dotimes (i size)
+;;        (setf (aref x i) (* 0.2d0 (funcall num-gen)))
+;;        (setf (aref x0 i) (* (aref x i) (+ 0.5d0 (random 1.0d0))))
+;;        (dotimes (j size)
+;;          (if (= i j)
+;;              (setf (aref A i j) (* 3.0d0 (funcall num-gen-pos)))
+;;              (setf (aref A i j) (* 0.2d0 (funcall num-gen-pos))))))
+;;      (let ((a-fun (matrix-mul->function A))
+;;            (bicg (bicg-stab-value size)))
+;;        (funcall a-fun x b)
+;;        ;; (format t "Problem:~%A = ~A~%x = ~A~%x0 = ~A~%b = ~A~%" A x x0 b)
+;;        (let ((result (bicg-stab-solve bicg a-fun b x0))) ; log-control
+;;          ;; (format t "Solution:~%~A~%" result)
+;;          (if (iterator:finished-p result)
+;;              (progn
+;;                (funcall a-fun (bicg-stab-solution (iterator:value result)) b-sol)
+;;                (format t "~&x residual = ~G~%"
+;;                        (l2-norm-diff (bicg-stab-solution (iterator:value result))
+;;                                      x))
+;;                (format t "~&b residual = ~G~%"
+;;                        (l2-norm-diff b b-sol)))
+;;              (progn
+;;                (format t "~&Problem: ~A~%" (first (iterator:value result)))
+;;                (format t "Final value:~%~A~%" (second (iterator:value result))))))))))
 
 
 (test linear-sparse-bicg
@@ -110,8 +108,8 @@
                                            ( 0d0 -2d0  5d0  1d0 0d0)
                                            ( 0d0  0d0 -2d0  5d0 1d0)
                                            ( 0d0  0d0  0d0 -2d0 5d0))))
-        (b  (make-double-float-vector 5))
-        (x0 (make-double-float-vector 5))
+        (b  (make-vector 5 'double-float))
+        (x0 (make-vector 5 'double-float))
         (x (vec 'double-float 1d0 1.2d0 1.25d0 1.3d0 1.3d0))
         (log-control (let ((performed -1))
                        (log-computation
@@ -214,7 +212,8 @@
                     (lambda (tag data)
                       (declare (ignore tag))
                       (incf n)
-                      (format t "~&Iteration #~D~%x = ~A~%" n (bicg-stab-solution data)))))))
+                      (format t "~&Iteration #~D~%x = ~A~%"
+                              n (bicg-stab-solution data)))))))
     (let ((fun-a (matrix-mul->function a))
           (bicg (bicg-stab 3 log-out)))
       (multiple-value-bind (x-sol successful-p final-residual)

@@ -2,8 +2,13 @@
 
 (defpackage #:mobius.numeric.nonlinear
   (:nicknames #:numeric-nonlinear)
-  (:use #:cl)
-  (:export #:fsolve)
+  (:use #:cl #:optima #:numeric-linear-base)
+  (:export #:nonlinear-value
+           #:nonlinear-value-x #:nonlinear-value-f
+           #:nonlinear-value-residual
+           #:nonlinear-value-square-residual
+           #:init-nonlinear-value
+           #:fsolve #:solve-nonlinear)
   (:documentation
    "Generic solver of nonlinear equations"))
 
@@ -33,19 +38,6 @@
         #:numeric-fixed-point #:numeric-control #:numeric-helpers
         #:numeric-linsearch
         #:numeric-nonlinear)
-  (:shadowing-import-from #:numeric-ad
-                          #:+ #:- #:* #:/
-                          #:sin #:cos #:tan #:asin #:acos #:atan
-                          #:exp #:log #:expt #:sqrt
-                          #:sinh #:cosh #:tanh
-                          #:= #:< #:> #:<= #:>=
-                          #:zerop #:plusp #:minusp
-                          #:literal-function
-                          #:literal-vector
-                          #:D #:diff #:gradient-f #:jacobian*vector #:jacobian*vector-save
-                          #:directional-derivative-f
-                          #:partial
-                          #:comp)
   (:export #:newton-value
            #:newton-solution
            #:newton-residual

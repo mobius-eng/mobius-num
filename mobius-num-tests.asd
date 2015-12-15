@@ -4,11 +4,13 @@
   :author "Alexey Cherkaev <Alexey.Cherkaev@gmail.com>"
   :license "LGPLv.3"
   :version "0.0.1"
-  :depends-on (#:mobius-utils #:alexandria #:optima #:fiveam #:mobius-num #:cl-num-utils)
+  :depends-on (#:mobius-utils #:alexandria #:optima #:fiveam
+                              #:mobius-num #:cl-num-utils)
   :components ((:module
                 "tests"
                 :serial t
                 :components ((:file "package")
+                             (:file "symbolic")
                              (:file "ad")
                              (:file "base")
                              (:file "linear")

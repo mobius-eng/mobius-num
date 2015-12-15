@@ -1,16 +1,15 @@
-(in-package #:newton)
+(in-package #:numeric-newton)
 
 ;; * Newton's method
 ;; ** Value representation
 (defclass newton-value ()
-  ((newton-value-x
-    :initarg :x
-    :reader newton-value-x
-    :documentation "Current approximation")
-   (newton-value-f
-    :initarg :f
-    :reader newton-value-f
-    :documentation "Value of function F on current approximation")
+  ((newton-value-approximation
+    :initarg :approximation
+    :reader newton-value-approximation
+    :type nonlinear-value
+    :documentation
+    "Representation of the current approximation: a pair of (X F)
+where F is (F X)")
    (newton-value-dir
     :initarg :dir
     :reader newton-value-dir
@@ -28,20 +27,14 @@
 
 (defun make-newton-value (size)
   (make-instance 'newton-value
-    :x (make-vector size 'double-float)
-    :f (make-vector size 'double-float)
+    :approximation (nonlinear-value (make-vector size 'double-float)
+                                    (make-vector size 'dobuel-float))
     :dir (make-vector size 'double-float)))
 
-(defun newton-solution (val)
-  (newton-value-x val))
-
-(defun newton-residual (val)
-  (newton-value-f val))
-
 (defmethod print-object ((obj newton-value) out)
-  (with-slots (newton-value-x newton-value-f newton-value-g0) obj
+  (with-slots (newton-value-approximation newton-value-g0) obj
     (print-unreadable-object (obj out :type t)
-     (format out "x = ~A f(x) = ~A g(x) = ~F" newton-value-x newton-value-f newton-value-g0))))
+     (format out "~A g(x) = ~F" newton-value-approximation newton-value-g0))))
 
 ;; ** Control
 (defvar *newton-tolerance* 1d-8)
@@ -55,8 +48,8 @@
 
 (defun make-newton-control (tolerance max-iterations other-controls)
   (apply #'combine-controls
-         (finished-value (newton-finished-p tolerance))
-         (limit-iterations max-iterations)
+         (finished-value (newton-finished-p tolerance) #'newton-value-approximation)
+         (limit-iterations max-iterations #'newton-value-approximation)
          other-controls))
 
 ;; ** Method representation
@@ -67,12 +60,12 @@
    (newton-linear-solver
     :initarg :linear-solver
     :accessor newton-linear-solver)
-   (newton-df->x
-    :initarg :df->x
-    :reader newton-df->x)
    (newton-tmp-x
     :initarg :tmp-x
     :reader newton-tmp-x)
+   (newton-tmp-f
+    :initarg :tmp-f
+    :reader newton-tmp-f)
    (newton-control
     :initarg :control
     :reader newton-control)
@@ -93,8 +86,8 @@
   (make-instance 'newton
     :value (make-newton-value size)
     :linear-solver linear-solver
-    :df->x (make-vector size)
     :tmp-x (make-vector size 'double-float)
+    :tmp-f (make-vector size 'double-float)
     :control (make-newton-control tolerance max-iterations other-controls)
     :linsearch (make-linsearch)))
 
@@ -113,69 +106,65 @@
 
 
 ;; ** Newton step (globally convergent)
-(defun make-newton-step (method f)
+(defun make-newton-step (method function jacobian*vector)
   (declare (type newton method))
-  (with-accessors ((df->x newton-df->x)
-                   (tmp-x newton-tmp-x)
+  (with-accessors ((tmp-x newton-tmp-x)
+                   (tmp-f newton-tmp-f)
                    (lsearch newton-linsearch)
                    (lin-solver newton-linear-solver))
       method
-    (let (f-tmp-value)
-      (lambda (value)
-        (declare (type newton-value value))
-        (with-accessors ((x newton-value-x)
-                         (p newton-value-dir)
-                         (f-value newton-value-f)
-                         (g0 newton-value-g0)
-                         (Dg0 newton-value-Dg0))
-            value
-         (flet ((ls-g (lmbda)
-                  (linear-combination! 0d0 tmp-x (cons 1d0 x) (cons lmbda p))
-                  (setf f-tmp-value (funcall f tmp-x))
-                  (* 0.5d0 (square-vector f-tmp-value)))
-                (df-fun (y b)
-                  (negate-vector! (jacobian*vector-save f x y df->x b))))
-           (copy-vector-to! x p)
-           (multiple-value-bind (solution successful-p info)
-               (solve-linear lin-solver #'df-fun f-value p)
-             (unless successful-p
-               (error 'linear-solver-failed :info `(:solution ,solution :info ,info)))
-             (let ((g1 (ls-g 1d0)))
-               (multiple-value-bind (final-lambda successful-p final-g)
-                   (linsearch lsearch #'ls-g #'newton-step-gamma g0 Dg0 g1)
-                 (declare (ignore final-lambda))
-                 (unless successful-p
-                   (error 'linsearch-failed :value lsearch))
-                 (copy-vector-to! tmp-x x)
-                 (copy-vector-to! f-tmp-value f-value)
-                 (setf g0 final-g)
-                 (setf Dg0 (* -2d0 final-g))
-                 value)))))))))
+    (lambda (value)
+      (declare (type newton-value value))
+      (with-accessors ((app newton-value-approximation)
+                       (p newton-value-dir)
+                       (g0 newton-value-g0)
+                       (Dg0 newton-value-Dg0))
+          value
+        (with-accessors ((x nonlinear-value-x)
+                         (f nonlinear-value-f))
+            app
+          (flet ((ls-g (lmbda)
+                   (add-with-multipliers! tmp-x (cons 1d0 x) (cons lmbda p))
+                   (funcall function tmp-x tmp-f)
+                   (* 0.5d0 (square-vector tmp-f)))
+                 (df-fun (y b)
+                   (negate-vector! (funcall jacobian*vector x y b))))
+            (copy-vector-to! x p)
+            (multiple-value-bind (solution successful-p info)
+                (solve-linear lin-solver #'df-fun f p)
+              (unless successful-p
+                (error 'linear-solver-failed :info `(:solution ,solution :info ,info)))
+              (let ((g1 (ls-g 1d0)))
+                (multiple-value-bind (final-lambda successful-p final-g)
+                    (linsearch lsearch #'ls-g #'newton-step-gamma g0 Dg0 g1)
+                  (declare (ignore final-lambda))
+                  (unless successful-p
+                    (error 'linsearch-failed :value lsearch))
+                  (copy-vector-to! tmp-x x)
+                  (copy-vector-to! tmp-f f)
+                  (setf g0 final-g)
+                  (setf Dg0 (* -2d0 final-g))
+                  value)))))))))
 
 
 ;; ** Solver
 
-(defun init-method! (method f x)
-  (let ((val (newton-value method)))
-    (copy-vector-to! x (newton-value-x val))
-    (copy-vector-to! (funcall f x) (newton-value-f val))
-    (setf (newton-value-g0 val) (* 0.5 (square-vector (newton-value-f val))))
-    (setf (newton-value-Dg0 val) (* -2d0 (newton-value-g0 val)))))
+(defun init-newton-value! (value function x0)
+  (with-accessors ((app newton-value-approximation)
+                   (g0 newton-value-g0)
+                   (Dg0 newton-value-Dg0))
+      value
+    (init-nonlinear-value app function x0)
+    (setf g0 (* 0.5 (nonlinear-value-square-residual app)))
+    (setf Dg0 (* -2d0 g0))))
 
-
-(defun newton-solve (method f x)
-  (let ((stepper (make-newton-step method f)))
-    (init-method! method f x)
+;; ** Implementation of NONLINEAR-SOLVE
+(defmethod nonlinear-solve ((method newton) f x jacobian*vector)
+  (unless jacobian*vector
+    (error "Jacobian is not provided. Newton method requires Jacobian"))
+  (let ((stepper (make-newton-step method f jacobian*vector)))
+    (init-newton-value! (newton-value method) f x)
     (fixed-point (newton-control method) stepper (newton-value method))))
 
-;; ** Implementation of FSOLVE
+;; (sqrt (* 2d0 (newton-value-g0 value)))
 
-(defmethod fsolve ((method newton) f x0)
-  (match (newton-solve method f x0)
-    ((iterator:iterator :status :finished :value value)
-     (copy-vector-to! (newton-solution value) x0)
-     (values x0 T (sqrt (* 2d0 (newton-value-g0 value)))))
-    ((iterator:iterator :value value)
-     (copy-vector-to! (newton-solution value) x0)
-     (values x0 nil (sqrt (* 2d0 (newton-value-g0 value)))))
-    (x (values x0 nil x))))

@@ -92,3 +92,13 @@ Returns coefficients of the quadratic function approximating f(x)"
           (b (* delta-x (- (* (/ x1 (expt x2 2)) q)
                            (* (/ x2 (expt x1 2)) p)))))
       (values a b df0 f0))))
+
+(defun comp (f &rest more)
+  "Returns composition of functions of one argument"
+  (if (null more)
+      f
+      (lambda (x)
+        (reduce (lambda (g v) (funcall g v))
+                (cons f more)
+                :initial-value x
+                :from-end t))))

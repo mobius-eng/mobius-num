@@ -1,11 +1,10 @@
 (in-package cl-user)
 
-
-(defpackage #:mobius.numeric.tests.ad
-  (:nicknames #:num-tests-ad)
-  (:use #:cl #:fiveam #:ad)
+(defpackage #:mobius.numeric.tests.symbolic
+  (:nicknames #:num-tests-symbolic)
+  (:use #:cl #:fiveam #:numeric-symbolic #:numeric-helpers)
   (:shadowing-import-from
-   #:ad
+   #:numeric-symbolic
    #:+ #:- #:* #:/
    #:= #:< #:> #:<= #:>=
    #:zerop #:plusp #:minusp
@@ -13,9 +12,23 @@
    #:sinh #:cosh #:tanh
    #:exp #:expt #:log #:sqrt))
 
+
+(defpackage #:mobius.numeric.tests.ad
+  (:nicknames #:num-tests-ad)
+  (:use #:cl #:fiveam #:numeric-ad #:numeric-helpers)
+  (:shadowing-import-from
+   #:numeric-ad
+   #:+ #:- #:* #:/
+   #:= #:< #:> #:<= #:>=
+   #:zerop #:plusp #:minusp
+   #:sin #:cos #:tan #:asin #:acos #:atan
+   #:sinh #:cosh #:tanh
+   #:exp #:expt #:log #:sqrt #:numberp))
+
 (defpackage #:mobius.numeric.tests.base
   (:nicknames #:num-tests-base)
-  (:use #:cl #:numeric-constants #:control #:fixed-point #:fiveam #:numeric-helpers)
+  (:use #:cl #:numeric-constants #:numeric-control
+        #:numeric-fixed-point #:fiveam #:numeric-helpers)
   (:import-from #:mobius.utils #:average #:%)
   (:import-from #:cl-num-utils #:num=))
 

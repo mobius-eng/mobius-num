@@ -14,19 +14,19 @@ when applied to a symbolic argument"
 TAG the symbolic argument"
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (setf (symbol-function ',fun)
-           (make-unary-symbolic ',tag #',op))))
+           (make-unary-symbolic ,tag #',op))))
 
-(defsymb sin sin cl:sin)
-(defsymb cos cos cl:cos)
-(defsymb tan tan cl:tan)
-(defsymb exp exp cl:exp)
-(defsymb sqrt sqrt cl:sqrt)
-(defsymb asin asin cl:asin)
-(defsymb acos acos cl:acos)
-(defsymb atan atan cl:atan)
-(defsymb sinh sinh cl:sinh)
-(defsymb cosh cosh cl:cosh)
-(defsymb tanh tanh cl:tanh)
+(defsymb sin :sin cl:sin)
+(defsymb cos :cos cl:cos)
+(defsymb tan :tan cl:tan)
+(defsymb exp :exp cl:exp)
+(defsymb sqrt :sqrt cl:sqrt)
+(defsymb asin :asin cl:asin)
+(defsymb acos :acos cl:acos)
+(defsymb atan :atan cl:atan)
+(defsymb sinh :sinh cl:sinh)
+(defsymb cosh :cosh cl:cosh)
+(defsymb tanh :tanh cl:tanh)
 
 ;; ** Binary numerical operations
 
@@ -34,16 +34,16 @@ TAG the symbolic argument"
   (cond ((cl:numberp arg)
          (cond ((null base) (cl:log arg))
                ((cl:numberp base) (cl:log arg base))
-               (t `(log ,arg ,base))))
+               (t `(:log ,arg ,base))))
         (t
          (unless base
            (setf base (cl:exp 1.0d0)))
-         `(log ,arg ,base))))
+         `(:log ,arg ,base))))
 
 (defun expt (base power)
   (cond ((and (cl:numberp base) (cl:numberp power))
          (cl:expt base power))
-        (t `(expt ,base ,power))))
+        (t `(:expt ,base ,power))))
 
 ;; ** Multiarity numerical operations
 
@@ -112,8 +112,11 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
            (destructuring-bind (nums others) (two-way-split #'cl:numberp list)
              (let ((num (apply #'cl:+ nums)))
                (cond ((null others) num)
-                     ((cl:zerop num) (if (null (rest others)) (first others) `(+ ,@others)))
-                     (t `(+ ,num ,@others)))))))
+                     ((cl:zerop num)
+                      (if (null (rest others))
+                          (first others)
+                          `(:+ ,@others)))
+                     (t `(:+ ,num ,@others)))))))
     (match (list x-p y-p)
       ((list nil nil) 0)
       ((list t nil) x)
@@ -128,13 +131,13 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
           (lambda (z) (bin+ (funcall f z) y)))
          ((list _ x :function g)
           (lambda (z) (bin+ x (funcall g z))))
-         ((list :cons (list* '+ p) :cons (list* '+ u))
+         ((list :cons (list* :+ p) :cons (list* :+ u))
           (expr-from-arg-list (append p u)))
-         ((list :cons (list* '+ p) _ y)
+         ((list :cons (list* :+ p) _ y)
           (expr-from-arg-list (cons y p)))
-         ((list _ x :cons (list* '+ u))
+         ((list _ x :cons (list* :+ u))
           (expr-from-arg-list (cons x u)))
-         (otherwise `(+ ,x ,y)))))))
+         (otherwise `(:+ ,x ,y)))))))
 
 
 (defun bin* (&optional (x nil x-p) (y nil y-p))
@@ -144,8 +147,8 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
              (let ((num (apply #'cl:* nums)))
                (cond ((null others) num)
                      ((cl:zerop num) 0)
-                     ((cl:= num 1) (if (null (rest others)) (first others) `(* ,@others)))
-                     (t `(* ,num ,@others)))))))
+                     ((cl:= num 1) (if (null (rest others)) (first others) `(:* ,@others)))
+                     (t `(:* ,num ,@others)))))))
     (match (list x-p y-p)
       ((list nil nil) 1)
       ((list t nil) x)
@@ -162,13 +165,13 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
           (lambda (z) (bin* (funcall f z) y)))
          ((list _ x :function g)
           (lambda (z) (bin* x (funcall g z))))
-         ((list :cons (list* '* p) :cons (list* '* u))
+         ((list :cons (list* :* p) :cons (list* :* u))
           (expr-from-arg-list (append p u)))
-         ((list :cons (list* '* p) _ y)
+         ((list :cons (list* :* p) _ y)
           (expr-from-arg-list (cons y p)))
-         ((list _ x :cons (list* '* u))
+         ((list _ x :cons (list* :* u))
           (expr-from-arg-list (cons x u)))
-         (otherwise `(* ,x ,y)))))))
+         (otherwise `(:* ,x ,y)))))))
 
 (defun bin- (x &optional (y nil y-p))
   (flet ((expr-from-arg-list (lead list)
@@ -179,22 +182,22 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
                (cond ((null others)
                       (case front
                         ((:number) num)
-                        (t (if (cl:zerop num) front `(- ,front ,num)))))
+                        (t (if (cl:zerop num) front `(:- ,front ,num)))))
                      ((cl:zerop num)
                       (case front
                         ((:number) (if (null (rest others))
-                                       `(- ,(first others))
-                                       `(- 0 ,@others)))
-                        (t `(- ,front ,@others))))
+                                       `(:- ,(first others))
+                                       `(:- 0 ,@others)))
+                        (t `(:- ,front ,@others))))
                      (t (case front
-                          ((:number) `(- ,num ,@others))
-                          (t `(- ,front ,num ,@others)))))))))
+                          ((:number) `(:- ,num ,@others))
+                          (t `(:- ,front ,num ,@others)))))))))
     (match y-p
       (nil
        (match (list (argument-type x) x)
          ((list :number x) (cl:- x))
          ((list :function f) (lambda (z) (bin- (funcall f z))))
-         (otherwise `(- ,x))))
+         (otherwise `(:- ,x))))
       (t
        (match (list (argument-type x) x (argument-type y) y)
          ((list :number x :number y) (cl:- x y))
@@ -206,13 +209,13 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
           (lambda (z) (bin- (funcall f z) y)))
          ((list _ x :function g)
           (lambda (z) (bin- x (funcall g z))))
-         ((list :cons (list* '+ _) :cons (list* '+ _))
+         ((list :cons (list* :+ _) :cons (list* :+ _))
           (expr-from-arg-list x (cdr y)))
-         ((list :cons (list* '- p) :cons (list* '+ u))
+         ((list :cons (list* :- p) :cons (list* :+ u))
           (expr-from-arg-list (first p) (append (rest p) u)))
-         ((list :cons (list* '- p) _ y)
+         ((list :cons (list* :- p) _ y)
           (expr-from-arg-list (first p) (append (rest p) (list y))))
-         (otherwise `(- ,x ,y)))))))
+         (otherwise `(:- ,x ,y)))))))
 
 (defun bin/ (x &optional (y nil y-p))
   "Symbolic division for max 2 arguments. Does some trivial simplifications"
@@ -224,19 +227,19 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
                (cond ((null others)
                       (case front
                         ((:number) num)
-                        (t (if (cl:= num 1) front `(/ ,front ,num)))))
+                        (t (if (cl:= num 1) front `(:/ ,front ,num)))))
                      ((and (cl:zerop num) (eq front :number)) 0)
                      ((and (cl:= num 1) (not (eq front :number)))
-                      `(/ ,front ,@others))
+                      `(:/ ,front ,@others))
                      (t (case front
-                          ((:number) `(/ ,num ,@others))
-                          (t `(/ ,front ,num ,@others)))))))))
+                          ((:number) `(:/ ,num ,@others))
+                          (t `(:/ ,front ,num ,@others)))))))))
     (match y-p
       (nil
        (match (list (argument-type x) x)
          ((list :number x) (cl:/ x))
          ((list :function f) (lambda (z) (bin/ (funcall f z))))
-         (otherwise `(/ ,x))))
+         (otherwise `(:/ ,x))))
       (t
        (match (list (argument-type x) x (argument-type y) y)
          ((list :number x :number y) (cl:/ x y))
@@ -248,115 +251,38 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
           (lambda (z) (bin/ (funcall f z) y)))
          ((list _ x :function g)
           (lambda (z) (bin/ x (funcall g z))))
-         ((list :cons (list* '* _) :cons (list* '* _))
+         ((list :cons (list* :* _) :cons (list* :* _))
           (expr-from-arg-list x (cdr y)))
-         ((list :cons (list* '/ p) :cons (list* '* u))
+         ((list :cons (list* :/ p) :cons (list* :* u))
           (expr-from-arg-list (first p) (append (rest p) u)))
-         ((list :cons (list* '/ p) _ y)
+         ((list :cons (list* :/ p) _ y)
           (expr-from-arg-list (first p) (append (rest p) (list y))))
-         (otherwise `(/ ,x ,y)))))))
+         (otherwise `(:/ ,x ,y)))))))
 
 (defun + (&rest more)
   "Symbolic addition"
-  (match more
-    ((or nil (list x) (list x y)) (apply #'bin+ more))
-    (otherwise
-     (destructuring-bind (nums funs others)
-         (three-way-split #'separate-nums-funs more)
-       (let ((num (apply #'cl:+ nums))
-             (fun (apply #'add-functions funs)))
-         (cond ((not (null funs))
-                (lambda (z) (apply #'+ num (funcall fun z) others)))
-               ((null others) num)
-               ((cl:zerop num) (if (rest others)
-                                   `(+ ,@others)
-                                   (first others)))
-               (t `(+ ,num ,@others))))))))
+  (if (null more)
+      0
+      (reduce #'bin+ more)))
 
 (defun - (x &rest more)
   "Symbolic subtraction"
-  (match more
-    ((or nil (list _)) (apply #'bin- x more))
-    (otherwise
-     (destructuring-bind (nums funs others)
-         (three-way-split #'separate-nums-funs more)
-       (let ((num (apply #'cl:+ nums))
-             (fun (apply #'add-functions funs))
-             (front nil))
-         (cond ((cl:numberp x) (setf num (cl:- x num)) (setf front :num))
-               ((cl:functionp x)
-                (setf fun (if fun
-                              (lambda (z) (- (funcall x z) (funcall fun z)))
-                              x))
-                (setf front :fun))
-               (t (setf front x)))
-         (cond ((not (null fun))
-                (case front
-                  ((:num) (lambda (z) (apply #'- num (funcall fun z) more)))
-                  ((:fun) (lambda (z) (apply #'- (funcall fun z) num more)))
-                  (t (lambda (z) (apply #'- front num (funcall fun z) more)))))
-               ((null others)
-                (case front
-                  ((:num) num)
-                  (t (if (cl:zerop num) front `(- ,front ,num)))))
-               ((cl:zerop num)
-                (case front
-                  ((:num) `(- 0 ,@others))
-                  (t `(- ,front ,@others))))
-               (t (case front
-                    ((:num) `(- ,num ,@others))
-                    (t `(- ,front ,num ,@others))))))))))
+  (if (null more)
+      (bin- x)
+      (reduce #'bin- more :initial-value x)))
 
 (defun * (&rest more)
   "Symbolic multiplication"
-  (match more
-    ((or nil (list _) (list _ _)) (apply #'bin* more))
-    (otherwise
-     (destructuring-bind (nums funs others)
-         (three-way-split #'separate-nums-funs more)
-       (let ((num (apply #'cl:* nums))
-             (fun (apply #'mul-functions funs)))
-         (cond ((cl:zerop num) 0)
-               ((not (null funs))
-                (lambda (z) (apply #'* num (funcall fun z) others)))
-               ((null others) num)
-               ((cl:= num 1) (if (rest others) `(* ,@others) (first others)))
-               (t `(* ,num ,@others))))))))
+  (if (null more)
+      1
+      (reduce #'bin* more)))
 
 (defun / (x &rest more)
   "Symbolic division"
-  (match more
-    ((or nil (list _)) (apply #'bin/ x more))
-    (otherwise
-     (destructuring-bind (nums funs others)
-         (three-way-split #'separate-nums-funs more)
-       (let ((num (apply #'cl:* nums))
-             (fun (apply #'mul-functions funs))
-             (front nil))
-         (cond ((cl:numberp x) (setf num (cl:/ x num)) (setf front :num))
-               ((cl:functionp x)
-                (setf fun (if fun
-                              (lambda (z) (/ (funcall x z) (funcall fun z)))
-                              x))
-                (setf front :fun))
-               (t (setf front x)))
-         (cond ((and (eq front :num) (cl:zerop num)) 0)
-               ((not (null fun))
-                (case front
-                  ((:num) (lambda (z) (apply #'/ num (funcall fun z) more)))
-                  ((:fun) (lambda (z) (apply #'/ (funcall fun z) num more)))
-                  (t (lambda (z) (apply #'/ front num (funcall fun z) more)))))
-               ((null others)
-                (case front
-                  ((:num) num)
-                  (t (if (cl:= num 1) front `(/ ,front ,num)))))
-               ((cl:= num 1)
-                (case front
-                  ((:num) `(/ 1 ,@others))
-                  (t `(/ ,front ,@others))))
-               (t (case front
-                    ((:num) `(/ ,num ,@others))
-                    (t `(/ ,front ,num ,@others))))))))))
+  (if (null more)
+      (bin/ x)
+      (reduce #'bin/ more :initial-value x)))
+
 
 ;; ** Comparison
 
@@ -415,3 +341,13 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
 
 (defun minusp (x)
   (and (cl:numberp x) (cl:minusp x)))
+
+(defun literal-function (symbol)
+  (lambda (x) `(,symbol ,x)))
+
+(defun literal-vector (symbol length)
+  (make-array
+   length
+   :initial-contents
+   (loop for i below length
+        collect (intern (format nil "~A^~D" symbol i)))))

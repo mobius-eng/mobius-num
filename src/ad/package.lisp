@@ -15,7 +15,8 @@
            #:exp #:log #:expt #:sqrt
            #:sinh #:cosh #:tanh
            #:= #:< #:> #:<= #:>=
-           #:zerop #:plusp #:minusp)
+           #:zerop #:plusp #:minusp
+           #:literal-vector #:literal-function)
   (:documentation
    "Symbolic extensions of CL arithmetic operations"))
 
@@ -37,11 +38,9 @@
            #:zerop #:plusp #:minusp
            #:numberp #:variable-p
            #:literal-function
-           #:literal-vector
            #:D #:diff #:gradient-f #:jacobian*vector #:jacobian*vector-save
            #:directional-derivative-f
-           #:partial
-           #:comp)
+           #:partial)
   (:documentation
    "Automatic differentiation"))
 

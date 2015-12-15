@@ -124,15 +124,20 @@ is successful. Return value is ignored"))
 
 (defun ode-evolve (method ode-function init-state monitor-time monitor ode-error)
   (let ((dt (- (first monitor-time) (ode-state-time init-state))))
-    (fixed-point (combine-controls (perform-monitoring monitor)
-                                   (pop-monitor-time)
-                                   (ode-evolve-finished)
-                                   (close-to-monitor-adjust-step))
-                 (ode-next-step method ode-function ode-error)
-                 (list init-state
-                       dt
-                       dt
-                       monitor-time))))
+    (let ((result (fixed-point (combine-controls (perform-monitoring monitor)
+                                                 (pop-monitor-time)
+                                                 (ode-evolve-finished)
+                                                 (close-to-monitor-adjust-step))
+                               (ode-next-step method ode-function ode-error)
+                               (list init-state
+                                     dt
+                                     dt
+                                     monitor-time))))
+      (match result
+        ((iterator:iterator :status :finished :value value)
+         (first value))
+        (otherwise
+         (error "ODE-EVOLVE failed. Final state ~A" result))))))
 
 
 

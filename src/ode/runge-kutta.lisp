@@ -3,32 +3,35 @@
 ;; * Runge-Kutta methods
 
 ;; ** Tableau
-(defun make-tableau (&rest args &key a b c c*)
-  (cond ((null a) (error "Must provide A"))
-        ((null b) (error "Must provide B"))
-        ((null c) (error "Must provide C"))
-        ((null c*) (error "Must provide C*"))
-        (t args)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+ (defun make-tableau (&rest args &key a b c c*)
+   (cond ((null a) (error "Must provide A"))
+         ((null b) (error "Must provide B"))
+         ((null c) (error "Must provide C"))
+         ((null c*) (error "Must provide C*"))
+         (t args))))
 
-(defconstant rk45ck-tableau
-  (make-tableau
-   :a (vec 'double-float
-           0d0 0.2d0 0.3d0 0.6d0 1d0 0.875d0)
-   :c (vec 'double-float
-           (/ 37d0 378) 0d0 (/ 250d0 621) (/ 125d0 594) 0d0 (/ 512d0 1771))
-   :c* (vec 'double-float
-            (/ 2825d0 27648) 0d0 (/ 18575d0 48384) (/ 13525d0 55296) (/ 277d0 14336) 0.25d0)
-   :b (make-array
-       '(6 5)
-       :initial-contents
-       `((          0d0               0d0               0d0          0d0 0d0)
-         (        0.2d0               0d0               0d0          0d0 0d0)
-         (      0.075d0           0.225d0               0d0          0d0 0d0)
-         (        0.3d0            -0.9d0             1.2d0          0d0 0d0)
-         (,(/ -11d0 54)             2.5d0     ,(/ -70d0 27) ,(/ 35d0 27) 0d0)
-         (,(/ 1631d0 55296) ,(/ 175d0 512) ,(/ 575d0 13824)
-           ,(/ 44275d0 110592) ,(/ 253d0 4096)))))
-  "Runge-Kutta embedded formula tableau of order 4-5 due to Cash-Karp")
+;; Need to add this otherwise the constant migth be redefined
+(eval-when (:compile-toplevel)
+ (defconstant rk45ck-tableau
+   (make-tableau
+    :a (vec 'double-float
+            0d0 0.2d0 0.3d0 0.6d0 1d0 0.875d0)
+    :c (vec 'double-float
+            (/ 37d0 378) 0d0 (/ 250d0 621) (/ 125d0 594) 0d0 (/ 512d0 1771))
+    :c* (vec 'double-float
+             (/ 2825d0 27648) 0d0 (/ 18575d0 48384) (/ 13525d0 55296) (/ 277d0 14336) 0.25d0)
+    :b (make-array
+        '(6 5)
+        :initial-contents
+        `((          0d0               0d0               0d0          0d0 0d0)
+          (        0.2d0               0d0               0d0          0d0 0d0)
+          (      0.075d0           0.225d0               0d0          0d0 0d0)
+          (        0.3d0            -0.9d0             1.2d0          0d0 0d0)
+          (,(/ -11d0 54)             2.5d0     ,(/ -70d0 27) ,(/ 35d0 27) 0d0)
+          (,(/ 1631d0 55296) ,(/ 175d0 512) ,(/ 575d0 13824)
+            ,(/ 44275d0 110592) ,(/ 253d0 4096)))))
+   "Runge-Kutta embedded formula tableau of order 4-5 due to Cash-Karp"))
 
 (defun tableau-order (tableau)
   "Highest order of the method"

@@ -16,7 +16,8 @@
            #:cubic-extremum-1 #:cubic-extremum-2
            #:linear-approximation
            #:quad-approximation
-           #:cubic-approximation)
+           #:cubic-approximation
+           #:comp)
   (:documentation
    "Simple helper functions on numbers"))
 

@@ -106,6 +106,10 @@
 (defmethod gen-lift-real*real->real ((x1 t) (x2 t) f df-dx1 df-dx2)
   (funcall f x1 x2))
 
+;; (defmethod gen-lift-real*real->real ((x1 function) (x2 t) f df-dx1 df-dx2)
+;;   (if (functionp x2)
+;;       ))
+
 (defmethod gen-lift-real*real->real ((x1 dual-number) (x2 t) f df-dx1 df-dx2)
   (new-dual-number (epsilon x1)
                    (gen-lift-real*real->real (primal x1) x2 f df-dx1 df-dx2)
@@ -339,16 +343,8 @@
 
 
 (defun literal-function (f)
-  (lift-real->real (lambda (x) (list f x))
+  (lift-real->real (sym:literal-function f)
                    (lambda (x) (list (list 'diff f) x))))
-
-
-(defun literal-vector (symbol length)
-  (make-array
-   length
-   :initial-contents
-   (loop for i below length
-        collect (intern (format nil "~A^~D" symbol i)))))
 
 (defun forward-mode (map-independent map-dependent f x x-perturbation)
   (cl:incf *e*)
@@ -453,16 +449,6 @@ This function cannot be applied to symbolic data!"
 (defun partial (n f)
   (lambda (v)
     (diff (lambda (x) (funcall f (update-vector v n x))) (svref v n))))
-
-
-(defun comp (f &rest more)
-  (if (null more)
-      f
-      (lambda (x)
-        (reduce (lambda (g v) (funcall g v))
-                (cons f more)
-                :initial-value x
-                :from-end t))))
 
 
 ;; TODO: reverse derivatives!

@@ -20,15 +20,16 @@
 
 (defpackage #:mobius.numeric.trapezoid
   (:nicknames #:numeric-trapezoid)
-  (:use #:cl #:linear-base #:control #:numeric-nonlinear
-        #:newton #:ad #:numeric-helpers)
-  (:shadowing-import-from #:ad
+  (:use #:cl #:numeric-linear-base #:numeric-control #:numeric-nonlinear
+        #:numeric-newton #:numeric-ad #:numeric-helpers)
+  (:shadowing-import-from #:numeric-ad
                           #:+ #:- #:* #:/
                           #:sin #:cos #:tan #:asin #:acos #:atan
                           #:exp #:log #:expt #:sqrt
                           #:sinh #:cosh #:tanh
                           #:= #:< #:> #:<= #:>=
-                          #:zerop #:plusp #:minusp))
+                          #:zerop #:plusp #:minusp
+                          #:numberp))
 
 ;; (defpackage mobius.numeric.ode
 ;;   (:nicknames #:ode)
