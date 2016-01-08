@@ -28,7 +28,7 @@ where F is (F X)")
 (defun make-newton-value (size)
   (make-instance 'newton-value
     :approximation (nonlinear-value (make-vector size 'double-float)
-                                    (make-vector size 'dobuel-float))
+                                    (make-vector size 'double-float))
     :dir (make-vector size 'double-float)))
 
 (defmethod print-object ((obj newton-value) out)
@@ -89,7 +89,10 @@ where F is (F X)")
     :tmp-x (make-vector size 'double-float)
     :tmp-f (make-vector size 'double-float)
     :control (make-newton-control tolerance max-iterations other-controls)
-    :linsearch (make-linsearch)))
+    :linsearch (make-linsearch (log-computation
+                                (lambda (tag val)
+                                  (declare (ignore tag))
+                                  (format t "~&Linsearch: ~A~%" val))))))
 
 
 ;; ** Conditions
@@ -124,11 +127,12 @@ where F is (F X)")
                          (f nonlinear-value-f))
             app
           (flet ((ls-g (lmbda)
-                   (add-with-multipliers! tmp-x (cons 1d0 x) (cons lmbda p))
+                   (linear-combination! 0d0 tmp-x (cons 1d0 x) (cons lmbda p))
                    (funcall function tmp-x tmp-f)
                    (* 0.5d0 (square-vector tmp-f)))
                  (df-fun (y b)
-                   (negate-vector! (funcall jacobian*vector x y b))))
+                   (funcall jacobian*vector x y b)
+                   (negate-vector! b)))
             (copy-vector-to! x p)
             (multiple-value-bind (solution successful-p info)
                 (solve-linear lin-solver #'df-fun f p)
@@ -159,9 +163,9 @@ where F is (F X)")
     (setf Dg0 (* -2d0 g0))))
 
 ;; ** Implementation of NONLINEAR-SOLVE
-(defmethod nonlinear-solve ((method newton) f x jacobian*vector)
+(defmethod solve-nonlinear ((method newton) f x jacobian*vector)
   (unless jacobian*vector
-    (error "Jacobian is not provided. Newton method requires Jacobian"))
+    (error 'nonlinear-no-jacobian :method 'newton))
   (let ((stepper (make-newton-step method f jacobian*vector)))
     (init-newton-value! (newton-value method) f x)
     (fixed-point (newton-control method) stepper (newton-value method))))

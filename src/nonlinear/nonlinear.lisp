@@ -10,7 +10,8 @@
     :initarg :f
     :accessor nonlinear-value-f
     :documentation
-    "Value f(x) for nonlinear problem")))
+    "Value f(x) for nonlinear problem"))
+  (:documentation "Represents the approximation to nonlinear problem"))
 
 (defun nonlinear-value (x f)
   "Constructs nonlinear value representation for x and f (=f(x))"
@@ -19,7 +20,7 @@
 (defun init-nonlinear-value (value function x0)
   "Initialize VALUE with X0 and (FUNCTION X0)"
   (copy-vector-to! x0 (nonlinear-value-x value))
-  (funcall function (nonlinear-value-f value)))
+  (funcall function (nonlinear-value-x value) (nonlinear-value-f value)))
 
 (defun nonlinear-value-square-residual (value)
   (square-vector (nonlinear-value-f value)))
@@ -41,6 +42,17 @@ it is provided).
 F : function with sigunature (F X RESULT)
 JACOBIAN*VECTOR : function with signature (JACOBIAN*VECTOR X VECTOR RESULT)
 Returns ITERATOR:ITERATOR of the final NONLINEAR-VALUE"))
+
+(define-condition nonlinear-no-jacobian (error)
+  ((nonlinear-no-jacobian-method
+    :initarg :method
+    :reader nonlinear-no-jacobian-method))
+  (:documentation
+   "Condition is thrown when no Jacobian is provided but method requires it"))
+
+(defmethod print-object ((obj nonlinear-no-jacobian) out)
+  (print-unreadable-object (obj out :type t)
+    (princ (nonlinear-no-jacobian-method obj) out)))
 
 (defun fsolve (method function initial-approximation &optional jacobian*vector)
   "Solve nonlinear equation FUNCTION(X)=0 using METHOD, INITIAL-APPROXIMATION

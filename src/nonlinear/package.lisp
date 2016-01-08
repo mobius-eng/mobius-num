@@ -8,6 +8,7 @@
            #:nonlinear-value-residual
            #:nonlinear-value-square-residual
            #:init-nonlinear-value
+           #:nonlinear-no-jacobian
            #:fsolve #:solve-nonlinear)
   (:documentation
    "Generic solver of nonlinear equations"))
