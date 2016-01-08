@@ -4,7 +4,7 @@
   :author "Alexey Cherkaev <Alexey.Cherkaev@gmail.com>"
   :license "LGPLv.3"
   :version "0.0.1"
-  :depends-on (#:mobius-utils #:alexandria #:optima)
+  :depends-on (#:mobius-utils #:alexandria #:optima #:closer-mop)
   :components ((:module
                 "src"
                 :serial t
@@ -14,9 +14,9 @@
                               :components ((:file "package")
                                            (:file "constants")
                                            (:file "helpers")
-                                           (:file "iterator2")
-                                           (:file "control2")
-                                           (:file "fixed-point2")))
+                                           (:file "iterator")
+                                           (:file "control")
+                                           (:file "fixed-point")))
                              (:module
                               "ad"
                               :serial t
@@ -28,7 +28,7 @@
                               :serial t
                               :components ((:file "package")
                                            (:file "base")
-                                           (:file "bicg-stab2")))
+                                           (:file "bicg-stab")))
                              (:module
                               "nonlinear"
                               :serial t
