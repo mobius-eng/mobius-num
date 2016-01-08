@@ -3,6 +3,7 @@
 *.lisp-temp
 .DS_Store
 *.lisp~
+*.org~
 *.asd~
 *.dx64fsl
 *.dx32fsl
