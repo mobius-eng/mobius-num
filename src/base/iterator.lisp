@@ -6,40 +6,33 @@
            :documentation "Iterator status: :continue :finished or :failed")
    (value :initarg :value
           :accessor value
-          :documentation "Iterator value")
-   (info :initarg :info
-         :initform nil
-         :accessor info
-         :documentation "Additional info (alist) of iterator status (meta-data)"))
+          :documentation "Iterator value"))
   (:documentation "Computation flow status"))
 
 (defmethod print-object ((obj iterator) out)
   (print-unreadable-object (obj out)
-    (with-slots (status value info) obj
-      (format out "~A ~A (INFO~%~4T~{~A~^~%~4T~})" status value info))))
+    (with-slots (status value) obj
+      (format out "~A ~A" status value))))
 
-(defun iterator-p (obj) (typep obj 'iterator))
+(defun iterator-p (obj)
+  "Returns T if a given OBJ is ITERATOR"
+  (typep obj 'iterator))
 
-(defun continue (val &optional key info)
+(defun iterator (status value)
+  "Constructs ITERATOR with given STATUS and VALUE"
+  (make-instance 'iterator :status status :value value))
+
+(defun continue (val)
   "Make contine iterator"
-  (make-instance 'iterator
-                 :status :continue
-                 :value val
-                 :info (if key (list (cons key info)) nil)))
+  (iterator :continue val))
 
-(defun failed (val &optional key info)
+(defun failed (val)
   "Make failed iterator"
-  (make-instance 'iterator
-                 :status :failed
-                 :value val
-                 :info (if key (list (cons key info)) nil)))
+  (iterator :failed val))
 
-(defun finished (val &optional key info)
+(defun finished (val)
   "Make finished iterator"
-  (make-instance 'iterator
-                 :status :finished
-                 :value val
-                 :info (if key (list (cons key info)) nil)))
+  (iterator :finished val))
 
 (declaim (inline status-p))
 (defun status-p (obj status)
@@ -47,36 +40,17 @@
   (and (iterator-p obj) (eq (slot-value obj 'status) status)))
 
 (defun continue-p (iterator)
-  "Is ITERATOR :continue?"
+  "Is ITERATOR :CONTINUE?"
   (status-p iterator :continue))
 
 (defun failed-p (iterator)
-  "Is ITERATOR :failed?"
+  "Is ITERATOR :FAILED?"
   (status-p iterator :failed))
 
 (defun finished-p (iterator)
-  "Is ITERATOR :finished?"
+  "Is ITERATOR :FINISHED?"
   (status-p iterator :finished))
 
-(defun add-info (iterator key more-info)
-  "Add extra info into ITERATOR"
-  (push (cons key more-info) (info iterator))
-  iterator)
-
-(defun update-info (iterator update-function &rest args)
-  "Destructively update info of ITERATOR"
-  (setf (info iterator) (apply update-function (info iterator) args))
-  iterator)
-
-
-(defun change-status (iterator new-status)
-  "Destructively change iterator's status"
-  (setf (status iterator) new-status)
-  iterator)
-
-(defun ->continue (iterator) (change-status iterator :continue))
-(defun ->failed (iterator) (change-status iterator :failed))
-(defun ->finished (iterator) (change-status iterator :finished))
 
 (defun replace-value (iterator new-value)
   "Destrcutively change ITERATOR's value"
@@ -86,19 +60,54 @@
 
 (defun update-value (iterator update-function &rest args)
   "Destructively update ITERATOR's value"
-  (setf (value iterator)
-        (apply update-function (value iterator) args))
+  (declare (optimize (speed 3) (debug 0) (safety 1))
+           (type iterator iterator))
+  (setf (slot-value iterator 'value)
+        (apply update-function (slot-value iterator 'value) args))
   iterator)
 
+
+(defun change-status (iterator new-status &optional update-value-function)
+  "Destructively change iterator's status"
+  (setf (status iterator) new-status)
+  (if update-value-function
+      (update-value iterator update-value-function)
+      iterator))
+
+(defun ->continue (iterator &optional (update-value-function #'identity))
+  "Change status of the ITERATOR to :CONTINUE"
+  (change-status iterator :continue update-value-function))
+
+(defun ->failed (iterator &optional (update-value-function #'identity))
+  "Change status of the ITERATOR to :FAILED"
+  (change-status iterator :failed update-value-function))
+
+(defun ->finished (iterator &optional (update-value-function #'identity))
+  "Change status of the ITERATOR to :FINISHED"
+  (change-status iterator :finished update-value-function))
 
 (defun bind (iterator function)
   "Propogate ITERATOR's value through the FUNCTION
 if its status is :CONTINUE. Otherwise return ITERATOR
-FUNCTION must return ITERATOR
-Preserves the INFO of ITERATOR"
+FUNCTION must return ITERATOR"
   (if (continue-p iterator)
-      (update-info (funcall function (value iterator))
-                   (lambda (new-info) (nconc new-info (info iterator))))
+      (funcall function (value iterator))
       iterator))
 
+(defun bind (iterator &rest functions)
+  "Propogates ITERATOR's value through FUNCTIONS iff its status is
+:CONTINUE. Each function must accept iterator's value and return a new
+iterator."
+  (cond ((or (null functions) (not (continue-p iterator))) iterator)
+        (t (bind (funcall (first functions) (value iterator))
+                 (rest functions)))))
 
+(defun fmap (iterator &rest functions)
+  "Update iterators value iff it is :CONTINUE"
+  (if (continue-p iterator)
+      (update-value iterator
+                    (lambda (x)
+                      (reduce (lambda (r f) (funcall f r))
+                              functions
+                              :initial-value x)))
+      iterator))

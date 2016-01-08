@@ -1,9 +1,10 @@
 (in-package numeric-helpers)
 
-(defun almost-zero-p (x tolerance)
+(defun almost-zero-p (number &optional (tolerance default-precision))
   "Returns T if a number x is almost zero: |x| ~= 0"
-  (declare (type double-float x tolerance))
-  (< (abs x) tolerance))
+  (declare (type double-float number tolerance)
+           (optimize (speed 3) (debug 1) (safety 1)))
+  (< (abs number) tolerance))
 
 (defun quad-extremum (a b)
   "Return extremum of quadratic function
@@ -15,49 +16,76 @@ Result does not depend on c:
     lambda = - -----
                 2 a
 "
-  (- (/ b (* 2 a))))
+  (declare (type double-float a b)
+           (optimize (speed 3) (debug 1) (safety 1)))
+  (- (/ b (* 2d0 a))))
 
+
+(defun solve-quadratic (a b c)
+  "Solve quadratic equation
+
+       2
+    a x  + b x + c
+
+in real numbers as:
+
+         2
+    D = b  - 4 a c
+
+                 ____
+          -b - |/ D                     2 c
+    x  = ------------- (if b > 0) = ----------- (if b < 0)
+     1       2 a                       ___
+                                     |/ D  - b
+
+
+                 ___
+          -b + |/ D                  - 2 c
+    x  = ------------ (if b < 0)= ------------ (if b > 0)
+     2       2 a                     ___
+                                   |/ D  + b
+
+Returns the list of (LAMBDA ()) functions calculating the solution
+"
+  (declare (type double-float a b c))
+  (let ((d (- (expt b 2) (* 4d0 a c))))
+    (cond ((minusp d) nil)
+          ((plusp b)
+           (let ((sqrt-d (sqrt d)))
+             (list (lambda () (/ (- (+ b sqrt-d)) (* 2d0 a)))
+                   (lambda () (/ (- (* 2d0 c)) (+ sqrt-d b))))))
+          (t
+           (let ((sqrt-d (sqrt d)))
+             (list (lambda () (/ (* 2d0 c) (- sqrt-d b)))
+                   (lambda () (/ (- sqrt-d b) (* 2d0 a)))))))))
 
 (defun cubic-extremum-1 (a b c)
   "Return the smallest extremum (if a > 0) of a cubic function
               3      2
     y(x) = a x  + b x  + c x + d
 
-as given by
-                        __________
-                       / 2
-               - b - |/ b  - 3 a c              c
-    lambda  = --------------------- = --------------------
-                       3 a                 __________
-                                          / 2
-                                        \/ b  - 3 a c - b
+calculated as the smallest root of
+                 2
+    y'(x) = 3 a x  + b x + c = 0
 
-If b > 0 the former is used, if b < 0: the latter"
-  (let ((d (sqrt (- (* b b) (* 3 a c)))))
-   (if (minusp b)
-       (/ c (- d b))
-       (/ (- (+ b d)) (* 3 a)))))
+If no root is found, returns -INFINITY"
+  (match (solve-quadratic (* 3d0 a) (* 2d0 b) c)
+    (nil -infinity)
+    ((list  x1 _) (funcall x1))))
 
 (defun cubic-extremum-2 (a b c)
   "Return the largest extremum (if a > 0) of a cubic function
               3      2
     y(x) = a x  + b x  + c x + d
 
-as given by
-                        __________
-                       / 2
-               - b + |/ b  - 3 a c           - c
-    lambda  = --------------------- = --------------------
-                       3 a                 __________
-                                          / 2
-                                        \/ b  - 3 a c + b
+calculated as the largest root of
+                 2
+    y'(x) = 3 a x  + b x + c = 0
 
-If b < 0 the former is used, if b > 0: the latter"
-  (let ((d (sqrt (- (* b b) (* 3 a c)))))
-   (if (minusp b)
-       (/ (- d b) (* 3 a))
-       (- (/ c (+ d b))))))
-
+If no root is found, returns +INFINITY"
+  (match (solve-quadratic (* 3d0 a) (* 2d0 b) c)
+    (nil +infinity)
+    ((list _ x2) (funcall x2))))
 
 (defun linear-approximation (x0 f0 x1 f1)
   "Calculate coefficients of the line passing through

@@ -13,6 +13,10 @@
   #+clozure -1d++0
   "Floating point -inf")
 
+(defconstant default-precision #.(sqrt double-float-epsilon)
+  "Default precision for comparing double-float numbers")
+
+
 ;; (defconstant real 'double-float)
 ;; (defconstant sb32 '(signed-byte 32))
 ;; (defconstant sb64 '(signed-byte 64))

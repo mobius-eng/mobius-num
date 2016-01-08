@@ -4,15 +4,17 @@
   (:nicknames #:numeric-constants)
   (:use #:cl)
   (:export #:+infinity
-           #:-infinity)
+           #:-infinity
+           #:default-precision)
   (:documentation
    "Basic mathematical and physical constants"))
 
 (defpackage #:mobius.numeric.helpers
   (:nicknames #:numeric-helpers)
-  (:use #:cl)
+  (:use #:cl #:optima #:numeric-constants)
   (:export #:almost-zero-p
            #:quad-extremum
+           #:solve-quadratic
            #:cubic-extremum-1 #:cubic-extremum-2
            #:linear-approximation
            #:quad-approximation
@@ -49,7 +51,7 @@
    "Computation flow"))
 
 (defpackage #:mobius.numeric.control
-  (:use #:cl #:optima)
+  (:use #:cl #:optima #:numeric-constants)
   (:nicknames #:numeric-control)
   (:import-from #:alexandria #:make-keyword)
   (:export #:apply-control #:init-control
