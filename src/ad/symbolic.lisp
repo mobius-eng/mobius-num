@@ -16,6 +16,9 @@ TAG the symbolic argument"
      (setf (symbol-function ',fun)
            (make-unary-symbolic ,tag #',op))))
 
+;; Use keywords for representation, otherwise
+;; these symbols would be shadowed by AD package
+;; or have long representation
 (defsymb sin :sin cl:sin)
 (defsymb cos :cos cl:cos)
 (defsymb tan :tan cl:tan)
@@ -31,6 +34,7 @@ TAG the symbolic argument"
 ;; ** Binary numerical operations
 
 (defun log (arg &optional base)
+  "Logarithm of an ARG. If BASE is not provided, natural logarithm"
   (cond ((cl:numberp arg)
          (cond ((null base) (cl:log arg))
                ((cl:numberp base) (cl:log arg base))
@@ -41,6 +45,7 @@ TAG the symbolic argument"
          `(:log ,arg ,base))))
 
 (defun expt (base power)
+  "Exponentiation of BASE in POWER"
   (cond ((and (cl:numberp base) (cl:numberp power))
          (cl:expt base power))
         (t `(:expt ,base ,power))))
@@ -174,6 +179,7 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
          (otherwise `(:* ,x ,y)))))))
 
 (defun bin- (x &optional (y nil y-p))
+  "Symbolic subtraction of max of 2 arguments. Performs some simplification"
   (flet ((expr-from-arg-list (lead list)
            (destructuring-bind (nums others) (two-way-split #'cl:numberp list)
              (let ((num (apply #'cl:+ nums)) front)
@@ -346,6 +352,8 @@ PRED returns one of three values: :LEFT, :MIDDLE and :RIGHT"
   (lambda (x) `(,symbol ,x)))
 
 (defun literal-vector (symbol length)
+  "Make a vector with name SYMBOL of LENGTH.
+Initialized with SYMBOL^i"
   (make-array
    length
    :initial-contents

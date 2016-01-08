@@ -29,6 +29,7 @@
            #:= #:< #:> #:<= #:>=
            #:zerop #:plusp #:minusp #:numberp)
   (:import-from :alexandria #:iota)
+  (:import-from :mobius.utils :-> :->> :with-vector-items)
   (:use #:cl #:optima)
   (:export #:+ #:- #:* #:/
            #:sin #:cos #:tan #:asin #:acos #:atan

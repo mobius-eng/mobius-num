@@ -106,9 +106,17 @@
 (defmethod gen-lift-real*real->real ((x1 t) (x2 t) f df-dx1 df-dx2)
   (funcall f x1 x2))
 
-;; (defmethod gen-lift-real*real->real ((x1 function) (x2 t) f df-dx1 df-dx2)
-;;   (if (functionp x2)
-;;       ))
+(defmethod gen-lift-real*real->real ((x1 function) (x2 function) f df-dx1 df-dx2)
+  (lambda (z)
+    (gen-lift-real*real->real (funcall x1 z) (funcall x2 z) f df-dx1 df-dx2)))
+
+(defmethod gen-lift-real*real->real ((x1 function) x2 f df-dx1 df-dx2)
+  (lambda (z)
+    (gen-lift-real*real->real (funcall x1 z) x2 f df-dx1 df-dx2)))
+
+(defmethod gen-lift-real*real->real (x1 (x2 function) f df-dx1 df-dx2)
+  (lambda (z)
+    (gen-lift-real*real->real x1 (funcall x2 z) f df-dx1 df-dx2)))
 
 (defmethod gen-lift-real*real->real ((x1 dual-number) (x2 t) f df-dx1 df-dx2)
   (new-dual-number (epsilon x1)
@@ -122,13 +130,11 @@
             (list (funcall df-dx1 (primal x1) x2))
             (list x1)))
 
-
 (defmethod gen-lift-real*real->real (x1 (x2 dual-number) f df-dx1 df-dx2)
   (new-dual-number (epsilon x2)
                    (gen-lift-real*real->real x1 (primal x2) f df-dx1 df-dx2)
                    (* (funcall df-dx2 x1 (primal x2))
                       (perturbation x2))))
-
 
 (defmethod gen-lift-real*real->real (x1 (x2 tape) f df-dx1 df-dx2)
   (new-tape (epsilon x2)
@@ -152,7 +158,6 @@
                               (perturbation x1))
                            (* (funcall df-dx2 (primal x1) (primal x2))
                               (perturbation x2)))))))
-
 
 (defmethod gen-lift-real*real->real ((x1 dual-number) (x2 tape) f df-dx1 df-dx2)
   (case (compare-differentiable x1 x2)
@@ -347,6 +352,7 @@
                    (lambda (x) (list (list 'diff f) x))))
 
 (defun forward-mode (map-independent map-dependent f x x-perturbation)
+  "Functional way of forward mode of differentiation"
   (cl:incf *e*)
   (let ((y-forward
          (funcall f (funcall map-independent
@@ -361,21 +367,25 @@
                        (cl:< (epsilon y-forward) *e*))
                    0
                    (perturbation y-forward)))
-             y-forward)
-    #| (list
-     (lambda ()
-       (funcall map-dependent
-                (lambda (y-forward)
-                  (if (or (not (dual-number-p y-forward))
-                          (cl:< (epsilon y-forward) *e*))
-                      y-forward
-                      (primal y-forward)))
-                y-forward)
-       )
-     (lambda ()
-       )) |#
-    ))
+             y-forward)))
 
+(defun forward-mode* (map-independent map-dependent f x x-perturbation dual-x y-forward y dy)
+  "Imperative implementation of forward mode of differentiation"
+  (flet ((make-dual-number (x x-perturbation)
+           (new-dual-number *e* x x-perturbation))
+         (extract-perturbation (y-forward)
+           (if (or (not (dual-number-p y-forward))
+                   (cl:< (epsilon y-forward) *e*))
+               0
+               (perturbation y-forward))))
+    (cl:incf *e*)
+    (funcall map-independent dual-x #'make-dual-number x x-perturbation)
+    (funcall f dual-x y-forward)
+    (cl:decf *e*)
+    (list (lambda ()
+            (funcall map-dependent y #'primal y-forward))
+          (lambda ()
+            (funcall map-dependent dy #'extract-perturbation y-forward)))))
 
 (defun D (f)
   (lambda (x)
@@ -404,8 +414,26 @@
                   x
                   x-perturbation)))
 
-(defun jacobian*vector (f x v)
-  (funcall (directional-derivative-f f) x v))
+(defun directional-derivative-forward* (f dual-x y-forward)
+  (let ((size (length y-forward)))
+    (flet ((map-independent (x-dest g x x-perturbation)
+             (dotimes (i size)
+               (setf (svref x-dest i)
+                     (funcall g (aref x i) (aref x-perturbation i)))))
+           (map-dependent (y-dest g y-dual)
+             (dotimes (i size)
+               (setf (aref y-dest i)
+                     (funcall g (svref y-dual i))))))
+      (lambda (x x-perturbation dy)
+        (-> (forward-mode* #'map-independent #'map-dependent
+                           f
+                           x x-perturbation dual-x
+                           y-forward nil dy)
+            second
+            funcall)))))
+
+(defun jacobian*vector (f dual-x dual-y)
+  (directional-derivative-forward* f dual-x dual-y))
 
 
 (defun directional-derivative-f-buffer (f x x-perturbation x-dest df-dest)
