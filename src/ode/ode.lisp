@@ -17,6 +17,13 @@
 (defun ode-state (time value rate)
   (make-instance 'ode-state :time time :value value :rate rate))
 
+(defun ode-state-init-rate (ode-state ode-function)
+  (with-accessors ((time ode-state-time)
+                   (value ode-state-value)
+                   (rate ode-state-rate))
+      ode-state
+   (copy-vector-to! (funcall ode-function time value) rate)))
+
 (defmethod print-object ((obj ode-state) out)
   (print-unreadable-object (obj out :type t)
     (with-accessors ((time ode-state-time)
@@ -36,11 +43,26 @@
 (defun ode-error (scale tolerance)
   (make-instance 'ode-error :tolerance tolerance :scale scale))
 
+
+(defclass ode-function ()
+  ((ode-function-f :initarg :function :reader ode-function-f)
+   (ode-function-jacobian :initarg :jacobian :initform nil :reader ode-function-jacobian))
+  (:metaclass closer-mop:funcallable-standard-class))
+
+(defmethod initialize-instance :after ((odef ode-function) &key)
+  (with-accessors ((fun ode-function-f)) odef
+    (closer-mop:set-funcallable-instance-function odef fun)))
+
+(defun ode-function (f &optional jacobian)
+  (make-instance 'ode-function
+    :function f :jacobian jacobian))
+
+
 (defgeneric ode-attempt-step (method ode-function state time-step ode-error)
   (:documentation
    "Attempt step with TIME-STEP from initial STATE using METHOD.
 Returns (VALUES SUCCESSFUL-P RECOMMENDED-STEP)
-This operation should not modify STATE!"))
+This operation should not modify the STATE!"))
 
 (defgeneric ode-perform-step (method ode-function state time-step)
   (:documentation

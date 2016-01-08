@@ -2,10 +2,12 @@
 
 (defpackage #:mobius.numeric.ode
   (:nicknames #:numeric-ode)
-  (:use #:cl #:numeric-control #:optima #:numeric-fixed-point)
+  (:use #:cl #:numeric-control #:optima #:numeric-fixed-point #:numeric-linear-base)
   (:import-from #:mobius.utils #:%)
   (:export #:ode-state #:ode-state-time #:ode-state-value #:ode-state-rate
+           #:ode-state-init-rate
            #:ode-error #:ode-error-scale #:ode-error-tolerance
+           #:ode-function #:ode-function-jacobian
            #:ode-attempt-step #:ode-perform-step
            #:ode-step
            #:ode-evolve))
@@ -21,7 +23,7 @@
 (defpackage #:mobius.numeric.trapezoid
   (:nicknames #:numeric-trapezoid)
   (:use #:cl #:numeric-linear-base #:numeric-control #:numeric-nonlinear
-        #:numeric-newton #:numeric-ad #:numeric-helpers)
+        #:numeric-newton #:numeric-ad #:numeric-helpers #:numeric-ode)
   (:shadowing-import-from #:numeric-ad
                           #:+ #:- #:* #:/
                           #:sin #:cos #:tan #:asin #:acos #:atan
