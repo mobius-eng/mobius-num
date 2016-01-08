@@ -1,107 +1,6 @@
+
 (in-package mobius.numeric.bicg-stab)
 ;; * BiCGStab method implementation
-
-;; ** BiCGStab error conditions
-(define-condition rho-is-zero (error)
-  ((rho-is-zero-rho :initarg :rho :reader rho-is-zero-rho)
-   (rho-is-zero-residual :initarg :r :reader rho-is-zero-residual)
-   (rho-is-zero-initial-residual :initarg :r0 :reader rho-is-zero-initial-residual))
-  (:documentation "This condition is thrown if current residual is orthogonal to
-initial residual or both are very small: (r0,r) ~= 0"))
-
-(define-condition r0*v-is-zero (error)
-  ((r0*v-is-zero-r0 :initarg :r0 :reader r0*v-is-zero-r0)
-   (r0*v-is-zero-v :initarg :v :reader r0*v-is-zero-v)
-   (r0*v-is-zero-r0*v :initarg :r0*v :reader r0*v-is-zero-r0*v))
-  (:documentation "In calculating new alpha:
-
-             new-rho
-   alpha = -----------
-             r0 * v
-
-denominator became zero"))
-
-;; ** BiCGStab specific vector operations
-
-(defun new-rho (r r0 tolerance)
-  " Calculates rho = (dot r r0). The result must not be zero. Throws an error
-if the result is zero"
-  (let ((candidate (dot r r0)))
-    (if (almost-zero-p candidate (* tolerance tolerance))
-        (error 'rho-is-zero :rho candidate :r r :r0 r0)
-        candidate)))
-
-(defun residual! (A x b r)
-  "Calculate the residual r = b - A(x)"
-  (declare (type (vector double-float *) r)
-           (type (vector * *) x b))
-  (funcall A x r)
-  (dotimes (i (length r))
-    (setf (aref r i) (- (aref b i) (aref r i)))))
-
-
-(defun bicg-new-direction! (p r v beta omega)
-  "Get new direction
-
-    p   =  r    +  beta (p   - omega    v   )
-     i      i-1           i-1       i-1  i-1 
-
-
-"
-  (declare (type (vector double-float *) p r v)
-           (type double-float beta omega))
-  (dotimes (i (length p))
-    (setf (aref p i)
-          (+ (aref r i) (* beta (- (aref p i) (* omega (aref v i))))))))
-
-
-(defun new-alpha (r0 v new-rho tolerance)
-  " Calculate new alpha:
-             new-rho
-   alpha = -----------
-             r0 * v
-
-Thorws an error if (dot r0 v) becomes zero.
-"
-  (let ((r0*v (dot r0 v)))
-    (if (almost-zero-p r0*v (* tolerance tolerance))
-        (error 'r0*v-is-zero :r0 r0 :v v :r0*v r0*v)
-        (/ new-rho r0*v))))
-
-
-(defun update-s! (s r v alpha)
-  "Update vector S
-
-    s  = r      - alpha v 
-     i    i - 1          i
-
-"
-  (declare (type (vector double-float *) s r v)
-           (type double-float alpha))
-  (dotimes (i (length r))
-    (setf (aref s i) (- (aref r i) (* alpha (aref v i))))))
-
-(defun new-omega (s vt)
-  "Returns new omega:
-
-    omega  = (dot s vt) / (square-vector vt)
-         i
-"
-  (declare (type (vector double-float *) s vt))
-  (/ (dot vt s) (square-vector vt)))
-
-(defun update-residual! (r s vt omega)
-  "Update residual:
-
-    r  = s - omega  t
-     i            i
-"
-  (declare (type (vector double-float *) r s vt)
-           (type double-float omega))
-  (dotimes (i (length r))
-    (setf (aref r i)
-          (- (aref s i)
-             (* omega (aref vt i))))))
 
 ;; ** Value: state of BiCGStab algorithm
 (defclass bicg-stab-value ()
@@ -142,132 +41,250 @@ Thorws an error if (dot r0 v) becomes zero.
     :t (make-double-float-vector size)))
 
 (defun bicg-stab-vector-length (bicg-stab-value)
+  "Size of BiCGStab problem"
   (length (bicg-x bicg-stab-value)))
 
-(defun reinit! (value)
-  "Reinitialize data for the problem of the same size"
+(defun residual! (A x b r)
+  "Calculate the residual r = b - A(x)"
+  (declare (optimize (speed 3) (safety 1) (debug 0)))
+  (declare (type (simple-array double-float *) r)
+           (type (simple-array * *) x b))
+  (funcall A x r)
+  (dotimes (i (length r))
+    (setf (aref r i) (- (aref b i) (aref r i)))))
+
+(defun init-value! (value A x0 b)
+  "Initialize value with approximation X0
+Residual (BICG-R) is initialized as b - A*x0"
+  (declare (optimize (speed 3) (safety 1) (debug 0)))
+  (declare (type bicg-stab-value value))
   (setf (bicg-alpha value) 1.0d0)
   (setf (bicg-rho value) 1.0d0)
-  (setf (bicg-omega value) 1.0d0))
-
-(defun init-value! (value x0)
-  "Initialize data with approximation X0"
-  (declare (type bicg-stab-value value))
-  (copy-vector-to! (bicg-r0 value) (bicg-r value)) ;;??
+  (setf (bicg-omega value) 1.0d0)
+  (residual! A x0 b (bicg-r0 value))
+  (set-vector-to-zero! (bicg-p value))
+  (set-vector-to-zero! (bicg-v value))
+  (copy-vector-to! (bicg-r0 value) (bicg-r value))
   (copy-vector-to! x0 (bicg-x value)))
 
-;; ** Convergence control
-;; *** Definition
-(defvar *bicg-stab-tolerance* 1.0d-9)
-(defvar *bicg-stab-max-iterations* 20)
+;; ** BiCGStab computation steps
+(defun new-rho ()
+  " Calculates rho = (dot r r0)."
+  (alter-value
+   #f(cons (dot (bicg-r %) (bicg-r0 %)) %)))
 
-;; *** Specialized control
-(defun bicg-stab-control (&key
-                            (tolerance *bicg-stab-tolerance*)
-                            (max-iterations *bicg-stab-max-iterations*)
-                            other-controls)
-  "Construct the control for BiCGStab method"
-  (apply #'combine-controls
-         (finished-value (lambda (value)
-                           (let ((r (l2-norm (bicg-r value))))
-                             (< r tolerance))))
-         (limit-iterations max-iterations)
-         other-controls))
+;; Old
+(defun new-rho-not-zero (tolerance)
+  "Checks if new-rho is zero and if so, terminates computation"
+  (failed-value
+   (lambda (x)
+     (let ((new-rho (car x)))
+       (almost-zero-p new-rho (expt tolerance 2))))
+   (lambda (x)
+     (list "new-rho is zero" (cdr x)))))
 
-;; ** BiCGStab method
+(defun restart-if-rho-is-zero (tolerance)
+  "Cheks if new-rho is too close to zero and restarts computation
+from current approximation. I.e. r0 is set to current residual."
+  (alter-value
+   (lambda (x)
+     (declare (optimize (speed 3) (debug 0) (safety 1)))
+     (destructuring-bind (new-rho . value) x
+       (if (almost-zero-p new-rho tolerance)
+           (progn
+             (copy-vector-to! (bicg-r value) (bicg-r0 value))
+             (set-vector-to-zero! (bicg-v value))
+             (set-vector-to-zero! (bicg-p value))
+             (setf (bicg-rho value) 1d0)
+             (setf (bicg-alpha value) 1d0)
+             (setf (bicg-omega value) 1d0)
+             (cons (dot (bicg-r value) (bicg-r0 value)) value))
+           x)))))
+
+(defun new-direction (A)
+  "Get new direction
+
+    beta = rho    / rho  * alpha / omega
+              i-1      i                i-1
+ 
+    p   =  r    +  beta (p   - omega    v   )
+     i      i-1           i-1       i-1  i-1 
+
+   v  = A p
+    i      i
+
+"
+  (alter-value
+   (lambda (x)
+     (declare (optimize (speed 3) (safety 1) (debug 0)))
+     (destructuring-bind (new-rho . v) x
+       (declare (type double-float new-rho))
+       (let ((beta (* (/ new-rho (the double-float (bicg-rho v)))
+                      (/ (the double-float (bicg-alpha v))
+                         (the double-float (bicg-omega v))))))
+         (linear-combination!
+          beta (bicg-p v)
+          (cons 1d0 (bicg-r v))
+          (cons (- (* beta (bicg-omega v))) (bicg-v v)))
+         (funcall A (bicg-p v) (bicg-v v))
+         (setf (bicg-rho v) new-rho)
+         v)))))
+
+(defun r0*v ()
+  "Calculate dot-product (r0, v)"
+  (alter-value
+   (lambda (value)
+     (cons (dot (bicg-r0 value) (bicg-v value)) value))))
+
+;; Should never fail here, but just in case
+(defun r0*v-is-not-zero (tolerance)
+  "Fail if r0*v is zero"
+  (failed-value
+   (lambda (x)
+     (let ((r0*v (car x)))
+       (almost-zero-p r0*v (expt tolerance 2))))
+   (lambda (x)
+     (list "r0*v is zero" (cdr x)))))
+
+(defun new-alpha-s ()
+  " Calculate new alpha:
+
+               rho
+                  i
+   alpha = -----------
+             r0 * v
+                   i
+
+and
+
+  s = r    - alpha * v
+       i-1            i
+"
+  (alter-value
+   (lambda (x)
+     (destructuring-bind (r0*v . v) x
+       (setf (bicg-alpha v) (/ (bicg-rho v) r0*v))
+       (linear-combination!
+        0d0 (bicg-s v)
+        (cons 1d0 (bicg-r v))
+        (cons (- (bicg-alpha v)) (bicg-v v)))
+       v))))
+
+(defun finish-if-s-is-small (tolerance)
+  "If l2norm of s is small - finish"
+  (finished-value
+   (lambda (bicg-value)
+     (format t "~&S is small check~%")
+     (vector-almost-zero-p (bicg-s bicg-value) tolerance))
+   ;; #f(vector-almost-zero-p (bicg-s %) tolerance)
+   (lambda (value)
+     (add-with-multipliers! (bicg-x value) (cons (bicg-alpha value) (bicg-p value)))
+     (copy-vector-to! (bicg-s value) (bicg-r value))
+     value)))
+
+(defun new-t-omega-x-r (A)
+  "Update:
+
+               (s, t)  
+    omega  = -----------
+         i     (t, t)
+
+
+    x  = x    + alpha p  + omega  s
+     i    i-1          i        i
+
+    r  = s - omega  t
+     i            i
+
+"
+  (alter-value
+   (lambda (value)
+     (funcall A (bicg-s value) (bicg-t value))
+     (setf (bicg-omega value)
+           (/ (dot (bicg-s value) (bicg-t value))
+              (square-vector (bicg-t value))))
+     (add-with-multipliers!
+      (bicg-x value)
+      (cons (bicg-alpha value) (bicg-p value))
+      (cons (bicg-omega value) (bicg-s value)))
+     (linear-combination!
+      0d0 (bicg-r value)
+      (cons 1d0 (bicg-s value))
+      (cons (- (bicg-omega value)) (bicg-t value)))
+     value)))
+
+(defun finish-if-residual-is-small (tolerance)
+  "Final finish check: finish is residual is small"
+  (finished-value
+   (lambda (value)
+     (format t "~&Residual is small check~%")
+     (vector-almost-zero-p (bicg-r value) tolerance))))
+
+;; *** Computation parameters
+(defvar *bicg-stab-tolerance* 1.0d-8)
+(defvar *bicg-stab-max-iter-coeff* 10)
+
+(defun bicg-stab-solve (value A b x0 &rest other-controls)
+  "Solve linear set of equations A*x=b using BiCGStab method
+  VALUE is a compatible in size instance of BICG-STAB-VALUE
+  A is a function representing matrix multiplication or linear operator
+    (funcall A x b)
+  B is a right hand side vector
+  X0 is initial approximation of the solution
+  OTHER-CONTROLS extra controls (e.g. log-value) for computation"
+  (format t "~&In BiCGStab~%")
+  (check-vector-lengths b x0)
+  (assert (= (length b) (bicg-stab-vector-length value))
+          ()
+          'vector-length-mismatch
+          :length1 (length b)
+          :length2 (bicg-stab-vector-length value))
+  (init-value! value A x0 b)
+  (let ((n (length b)))
+    (let ((computation (combine-controls
+                        (new-rho) (restart-if-rho-is-zero *bicg-stab-tolerance*)
+                        (new-direction A)
+                        (r0*v) (r0*v-is-not-zero *bicg-stab-tolerance*)
+                        (new-alpha-s) (finish-if-s-is-small *bicg-stab-tolerance*)
+                        (new-t-omega-x-r A)
+                        (finish-if-residual-is-small *bicg-stab-tolerance*)
+                        (limit-iterations (* n *bicg-stab-max-iter-coeff*)
+                                          #f(list "exceeded max iterations" %)))))
+      (iterate (apply #'combine-controls computation other-controls)
+               (iterator:continue value)
+               (combine-controls
+                (finish-if-residual-is-small *bicg-stab-tolerance*)
+                (finished-value
+                 (lambda (value)
+                   (declare (ignore value))
+                   (format t "~&b is zero check~%")
+                   (vector-almost-zero-p b *bicg-stab-tolerance*))
+                 (lambda (value)
+                   (set-vector-to-zero! (bicg-x value))
+                   (set-vector-to-zero! (bicg-r value))
+                   value)))))))
+
 (defclass bicg-stab ()
-  ((bicg-stab-value
+  ((bicg-value
     :initarg :value
-    :reader bicg-stab-value)
-   (bicg-stab-control
-    :initarg :control
-    :reader bicg-stab-control))
+    :reader bicg-value
+    :documentation "Value part of BiCGStab method")
+   (bicg-other-controls
+    :initarg :other-controls
+    :reader bicg-other-controls
+    :documentation "Other controls for solver"))
   (:documentation
    "BiCGStab method"))
 
 (defun bicg-stab (size &rest other-controls)
+  "Make BiCGSTab method for a problem of size SIZE."
   (make-instance 'bicg-stab
     :value (bicg-stab-value size)
-    :control (bicg-stab-control :other-controls other-controls)))
+    :other-controls other-controls))
 
 (defun bicg-stab-size (bicg-stab)
   "Method's problem size (vectors lengths)"
-  (bicg-stab-vector-length (bicg-stab-value bicg-stab)))
-
-;; ** BiCGStab Step
-(defun make-bicg-stab-step (A tolerance)
-  "One step of BiCGStab method.
-  A is a function: (funcall A <arg> <dest>) where <arg> is a vector.
-     <dest> is expected to be (VECTOR DOUBLE-FLOAT *)
-  TOLERANCE is a DOUBLE-FLOAT tolerance to compare real numbers
-Returns function of BICG-STAB-VALUE to be used as improving function
-  for FIXED-POINT algorithm"
-  (lambda (value)
-    (declare (type bicg-stab-value value))
-    (block nil
-     (with-accessors ((r bicg-r) (r0 bicg-r0) (p bicg-p) (x bicg-x) (v bicg-v)
-                      (s bicg-s) (vt bicg-t)
-                      (omega bicg-omega) (alpha bicg-alpha) (rho bicg-rho))
-         value
-       (declare (type (vector double-float *) r r0 p x v s vt)
-                (type double-float omega alpha rho))
-       (let* ((new-rho (new-rho r r0 tolerance))          ; rho = (r,r0)
-              (beta (* (/ new-rho rho) (/ alpha omega)))) ; beta = (new-rho/rho)*(alpha/omega)
-         (setf rho new-rho)                               ; update rho in value
-         (bicg-new-direction! p r v beta omega)           ; p = r + beta * (p - omega * v)
-         (funcall A p v)                                  ; v = Ap
-         (setf alpha (new-alpha r0 v new-rho tolerance))  ; alpha = new-rho/ r0 * v
-         (update-s! s r v alpha)                          ; s = r - alpha v
-         (when (vector-almost-zero-p s tolerance)         ; if || s || = 0
-           (add-with-multipliers! x (cons alpha p))       ; x = x + alpha * p
-           (set-vector-to-zero! r)                        ; r = 0
-           (return-from nil value))                       ; return
-         (funcall A s vt)                                 ; vt = As
-         (setf omega (new-omega s vt))                    ; omega = (s,vt) / (vt,vt)
-         (add-with-multipliers! x
-                                (cons alpha p)
-                                (cons omega s))           ; x = x + alpha*p + omega*s
-         (update-residual! r s vt omega)                  ; r = s - omega * vt
-         value)))))                                       ; return
-
-
-
-;; ** BiCGSolver
-
-(defun bicg-stab-solve (method A b x0)
-  "Solve the set of linear equations defined by Ax=b
-Arguments:
-  METHOD is an instance of BICG-STAB with conforming vector sizes
-    and extra computation controls if required
-  A is a function (linear operator) (A <arg> <dest>) representing the
-    matrix of the equations set. <arg> can be a vector, <dest> is expected
-    to be (VECTOR DOUBLE-FLOAT *)
-  B is a RHS vector
-  X0 is initial approximation
-
-Return value: ITERATOR of BICG-STAB-VALUE"
-  (declare (type bicg-stab method)
-           (type (vector * *) b x0))
-  (let ((value (bicg-stab-value method)))
-    (check-vector-lengths x0 b)
-    (assert (= (bicg-stab-size method) (length x0))
-            ()
-            'vector-length-mismatch
-            :length1 (bicg-stab-vector-length value)
-            :length2 (length x0))
-    (reinit! value)
-    (residual! A x0 b (bicg-r0 value))
-    (init-value! value x0)
-    (cond ((vector-almost-zero-p b *bicg-stab-tolerance*)
-           (set-vector-to-zero! (bicg-x value))
-           (set-vector-to-zero! (bicg-r value))
-           (iterator:finished value :converged "RHS vector B is zero"))
-          ((vector-almost-zero-p (bicg-r0 value) *bicg-stab-tolerance*)
-           (copy-vector-to! x0 (bicg-x value))
-           (iterator:finished value :converged "Good first guess: residual = 0"))
-          (t (fixed-point (bicg-stab-control method)
-                          (make-bicg-stab-step A *bicg-stab-tolerance*)
-                          value)))))
+  (bicg-stab-vector-length (bicg-value bicg-stab)))
 
 (defun bicg-stab-residual (value)
   "Get residual (error) from BICG-STAB-VALUE"
@@ -280,21 +297,13 @@ Return value: ITERATOR of BICG-STAB-VALUE"
   (bicg-x value))
 
 (defmethod solve-linear ((method bicg-stab) a b x)
-  (let (bicg-error-condition)
-   (match
-       (handler-case (bicg-stab-solve method a b x)
-         (rho-is-zero (c)
-           (declare (ignore c))
-           (setf bicg-error-condition :rho-is-zero)
-           nil)
-         (r0*v-is-zero (c)
-           (declare (ignore c))
-           (setf bicg-error-condition :r0*v-is-zero)
-           nil))
-     ((iterator:iterator :status :finished :value value)
-      (copy-vector-to! (bicg-x value) x)
-      (values x t (l2-norm (bicg-r value))))
-     (otherwise
-      (values x nil (or bicg-error-condition
-                        (l2-norm (bicg-r method))))))))
+  (match (apply #'bicg-stab-solve (bicg-value method) a b x (bicg-other-controls method))
+    ((iterator:iterator :status :finished :value value)
+     (copy-vector-to! (bicg-x value) x)
+     (values x t (l2-norm (bicg-r value))))
+    ((iterator:iterator :status :failed :value x)
+     (let ((msg (first x))
+           (value (second x)))
+       (values x nil (bicg-r value) msg)))))
+
 

@@ -12,9 +12,13 @@
 
 (defun check-vector-lengths (vec &rest more-vectors)
   "Tests if all vectors have the same length"
+  (declare (optimize (speed 3) (debug 1) (safety 1))
+           (type (simple-array * *) vec))
   (let ((len (length vec))
-        other-length)
+        (other-length 0))
+    (declare (type fixnum len other-length))
     (or (every (lambda (w)
+                 (declare (type (simple-array * *) w))
                  (setf other-length (length w))
                  (eql other-length len))
                more-vectors)
@@ -24,12 +28,12 @@
 
 ;; ** Vector constructors
 (defun make-double-float-vector (length)
-  "Make (VECTOR DOOUBLE-FLOAT LENGTH)"
+  "Make (SIMPLE-ARRAY DOOUBLE-FLOAT LENGTH)"
   (declare (type fixnum length))
   (make-array length :element-type 'double-float))
 
 (defun make-vector (length &optional (type t))
-  "Make (VECTOR TYPE LENGTH)"
+  "Make (SIMPLE-ARRAY TYPE LENGTH)"
   (declare (type fixnum length))
   (make-array length :element-type type))
 
@@ -42,11 +46,12 @@
 
 ;; ** Misc operations
 (defun copy-vector-to! (source destination)
-  "Copy data from vector SOURCE (VECTOR * *) into
-DESTINATION (VECTOR DOUBLE-FLOAT *)"
-  (declare (type (vector * *) source)
-           (type (vector double-float *) destination)
-           (optimize (speed 3) (safety 1) (debug 0)))
+  "Copy data from vector SOURCE (SIMPLE-ARRAY * *) into
+DESTINATION (SIMPLE-ARRAY DOUBLE-FLOAT *) coercing numbers
+in the process"
+  (declare (type (simple-array * *) source)
+           (type (simple-array double-float *) destination)
+           (optimize (speed 3) (safety 1) (debug 1)))
   (check-vector-lengths source destination)
   (let ((length (length source)))
     (dotimes (i length)
@@ -54,10 +59,11 @@ DESTINATION (VECTOR DOUBLE-FLOAT *)"
             (coerce (aref source i) 'double-float)))))
 
 (defun reduce-vector (op init vector)
-  "Reduce VECTOR (from beginning) using OP and startibg with INIT"
-  (declare (type (vector * *) vector)
+  "Reduce VECTOR (from beginning) using OP and startibg with INIT
+VECTOR must satisfy (SIMPLE-ARRAY * *)"
+  (declare (type (simple-array * *) vector)
            (type (function (T T) T) op)
-           (optimize (speed 3) (debug 0) (safety 1)))
+           (optimize (speed 3) (debug 1) (safety 1)))
   (loop for x across vector
      do (setf init (funcall op init x)))
   init)
@@ -70,17 +76,18 @@ DESTINATION (VECTOR DOUBLE-FLOAT *)"
     i
 
 Lengths of V W must be the same.
-Both vectors must be (VECTOR DOUBLE-FLOAT *)"
-  (declare (type (vector double-float *) v w)
-           (optimize (speed 3) (debug 0) (safety 1)))
+Both vectors must be (SIMPLE-ARRAY DOUBLE-FLOAT *)"
+  (declare (type (simple-array double-float *) v w)
+           (optimize (speed 3) (debug 1) (safety 1)))
   (check-vector-lengths v w)
-  (loop for x across v
-     for y across w
-     sum (* x y)))
+  (let ((result 0d0))
+    (declare (type double-float result))
+    (dotimes (i (length v) result)
+      (incf result (* (aref v i) (aref w i))))))
 
 
 (defun l2-norm (v)
-  "L2 norm of a (VECTOR DOUBLE-FLOAT *) v
+  "L2 norm of a (SIMPLE-ARRAY DOUBLE-FLOAT *) v
         __________
         / __   2
     |  / \    v 
@@ -88,39 +95,42 @@ Both vectors must be (VECTOR DOUBLE-FLOAT *)"
     |/    i
 
 "
-  (declare (type (vector double-float *) v)
-           (optimize (speed 3) (debug 0) (safety 1)))
-  (sqrt (loop for x across v summing (* x x))))
+  (declare (type (simple-array double-float *) v)
+           (optimize (speed 3) (debug 1) (safety 1)))
+  (let ((result 0d0))
+    (declare (type double-float result))
+    (dotimes (i (length v) (sqrt result))
+      (incf result (* (aref v i) (aref v i))))))
 
 (defun square-vector (v)
-  "Dot product of (VECTOR DOUBLE-FLOAT *) V on itself:
+  "Dot product of (SIMPLE-ARRAY DOUBLE-FLOAT *) V on itself:
     __
    \    v v 
    /__   i i
     i
 
 "
-  (declare (type (vector * *) v)
-           (optimize (speed 3) (debug 0) (safety 1)))
-  (loop for x across v summing (* x x)))
+  (declare (type (simple-array * *) v)
+           (optimize (speed 3) (debug 1) (safety 1)))
+  (loop for x of-type double-float across v
+     summing (* x x) of-type double-float))
 
 
 (defun l2-norm-diff (vector &rest other-vectors)
   "l2-norm of difference between VECTOR and OTHER-VECTORS
 Does not allocate any extra space"
-  (declare (type (vector * *) vector)
-           (optimize (speed 3) (debug 0) (safety 1)))
+  (declare (type (simple-array * *) vector)
+           (optimize (speed 3) (debug 1) (safety 1)))
+  (apply #'check-vector-lengths vector other-vectors)
   (match other-vectors
     (nil (l2-norm vector))
     ((list vector2)
-     (declare (type (vector * *) vector2))
-     (check-vector-lengths vector vector2)
+     (declare (type (simple-array * *) vector2))
      (sqrt (loop for i below (length vector)
               sum (expt (the double-float
                              (- (aref vector i) (aref vector2 i)))
                         2))))
     (otherwise
-     (apply #'check-vector-lengths vector other-vectors)
      (sqrt
       (loop for i below (length vector)
          sum (expt (reduce #'- other-vectors
@@ -143,14 +153,14 @@ X must be (VECTOR DOUBLE-FLOAT *)
 TOLERANCE must be DOUBLE-FLOAT
 "
   (declare (type double-float tolerance)
-           (type (vector double-float *) x)
-           (optimize (speed 3) (debug 0) (safety 1)))
+           (type (simple-array double-float *) x)
+           (optimize (speed 3) (debug 1) (safety 1)))
   (< (l2-norm x) tolerance))
 
 (defun set-vector-to-zero! (v)
   "Set all components of double-float vector V to zero"
-  (declare (type (vector double-float) v)
-           (optimize (speed 3) (debug 0) (safety 1)))
+  (declare (type (simple-array double-float *) v)
+           (optimize (speed 3) (debug 1) (safety 1)))
   (dotimes (i (length v))
     (setf (aref v i) 0.0d0)))
 
@@ -167,19 +177,19 @@ p  is a  (VECTOR DOUBLE-FLOAT *)
 MULT-ARG is a squence of CONS-cells (CONS a  p )
                                            i  i
 "
-  (declare (type (vector double-float *) v)
-           (optimize (speed 3) (debug 0) (safety 1)))
+  (declare (type (simple-array double-float *) v)
+           (optimize (speed 3) (debug 1) (safety 1)))
   (match mult-arg
     (nil nil)
     ((list (cons m arg))
      (declare (type double-float m)
-              (type (vector double-float *) arg))
+              (type (simple-array double-float *) arg))
      (check-vector-lengths v arg)
      (dotimes (i (length v))
        (incf (aref v i) (* m (aref arg i)))))
     ((list (cons m1 arg1) (cons m2 arg2))
      (declare (type double-float m1 m2)
-              (type (vector double-float *) arg1 arg2))
+              (type (simple-array double-float *) arg1 arg2))
      (check-vector-lengths v arg1 arg2)
      (dotimes (i (length v))
        (incf (aref v i)
@@ -190,7 +200,10 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
      (dotimes (i (length v))
        (incf (aref v i)
              (loop for (m . arg) in mult-arg
-                  summing (* m (aref arg i))))))))
+                summing (* (the double-float m)
+                           (the double-float
+                                (aref (the (simple-array double-float *) arg) i)))
+                  of-type double-float))))))
 
 (defun linear-combination! (k v &rest coeff-vectors)
   "Computes linear combination
@@ -198,11 +211,15 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
     v  <- k v  + c   u  + ... + c  u
      i       i    0   i          N  i
 "
-  (declare (optimize (speed 3) (debug 0) (safety 1)))
+  (declare (optimize (speed 3) (debug 1) (safety 1))
+           (type double-float k)
+           (type (simple-array double-float *) v))
   (match coeff-vectors
     (nil (dotimes (i (length v))
            (setf (aref v i) (* k (aref v i)))))
     ((list (cons c w))
+     (declare (type double-float c)
+              (type (simple-array double-float *) w))
      (check-vector-lengths v w)
      (dotimes (i (length v))
        (setf (aref v i)
@@ -212,20 +229,28 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
      (dotimes (i (length v))
        (setf (aref v i)
              (+ (* k (aref v i))
-                (loop for (c . w) in coeff-vectors
-                   summing (* c (aref w i)))))))))
+                (let ((result 0d0))
+                  (declare (type double-float result))
+                  (dolist (entry coeff-vectors result)
+                    (destructuring-bind (c . w) entry
+                      (declare (type double-float c)
+                               (type (simple-array double-float *) w))
+                      (incf result (* c (aref w i))))))))))))
+
 
 (defun scale-vector! (factor vector &optional (result vector))
   "Multiply VECTOR by FACTOR. RESULT must be the vector of the same length"
-  (declare (optimize (speed 3) (debug 0) (safety 1)))
+  (declare (optimize (speed 3) (debug 1) (safety 1))
+           (type double-float factor)
+           (type (simple-array double-float *) vector result))
   (check-vector-lengths vector result)
   (dotimes (i (length vector))
     (setf (aref result i) (* factor (aref vector i)))))
 
 (defun negate-vector! (vector &optional (result vector))
   "Negate vector VECTOR (VECTOR DOUBLE-FLOAT *)"
-  (declare (type (vector double-float *) vector result)
-           (optimize (speed 3) (debug 0) (safety 1)))
+  (declare (type (simple-array double-float *) vector result)
+           (optimize (speed 3) (debug 1) (safety 1)))
   (check-vector-lengths vector result)
   (dotimes (i (length vector))
     (setf (aref result i) (- (aref vector i)))))
@@ -236,7 +261,7 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
 Optimized for DOUBLE-FLOAT vectors and matrices"
   (declare (type (simple-array double-float (* *)) matrix)
            (type (simple-array double-float *) vector dest)
-           (optimize (speed 3) (debug 0) (safety 0)))
+           (optimize (speed 3) (debug 1) (safety 0)))
   (destructuring-bind (rows cols) (array-dimensions matrix)
     (declare (type fixnum rows cols))
     (let ((sum-tmp 0d0))
@@ -257,10 +282,10 @@ Optimized for DOUBLE-FLOAT vectors and matrices"
 (defun matrix-mul-gen (matrix vector dest)
   "Generically multiply MATRIX by VECTOR putting the result into DEST.
 Works on all numerical types"
-  (declare (type (array * (* *)) matrix)
-           (type (vector * *) vector)
-           (type (vector double-float *) dest)
-           (optimize (speed 3) (debug 0) (safety 1)))
+  (declare (type (simple-array * (* *)) matrix)
+           (type (simple-array * *) vector)
+           (type (simple-array double-float *) dest)
+           (optimize (speed 3) (debug 1) (safety 1)))
   (destructuring-bind (rows cols) (array-dimensions matrix)
     (declare (type fixnum rows cols))
     (dotimes (i rows)
