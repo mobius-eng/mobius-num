@@ -45,7 +45,7 @@
   (:nicknames #:num-tests-nonlinear)
   (:use #:cl #:numeric-ad #:numeric-linear-base
         #:numeric-newton #:fiveam
-        #:numeric-helpers #:numeric-linsearch #:numeric-nonlinear)
+        #:numeric-helpers #:numeric-linsearch #:numeric-nonlinear #:numeric-control)
   (:import-from #:mobius.utils #:% #:with-vector-items)
   (:shadowing-import-from
    #:numeric-ad

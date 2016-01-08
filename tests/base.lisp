@@ -8,10 +8,11 @@
 (test utils
   "Tests constants from MOBIUS.NUMERIC.CONSTANTS"
   (is (numberp +infinity))
-  (is (> +infinity 1.0d20))
+  (is (> +infinity most-positive-double-float))
   (is (num= 0.0d0 (/ +infinity)))
   (is (numberp -infinity))
-  (is (< -infinity -1.0d20)))
+  (is (< -infinity most-negative-double-float))
+  (is (> default-precision least-positive-double-float)))
 
 
 (test iterator
