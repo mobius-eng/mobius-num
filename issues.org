@@ -1,0 +1,27 @@
+#+TITLE: MOBIUS-NUM Library issues tracker
+
+* Overall
+** TODO Use =default-precision= as default value for optional tolerance
+** TODO Do profiling of a large program
+
+
+* Base
+** TODO Improve constants
+
+* AD
+** TODO Reverse mode derivatives
+** TODO Optimization
+** TODO Improve documentation
+
+* Linear
+** TODO LUP-decomposition
+** TODO QR-decomposition
+** TODO SVD-decomposition
+
+* Nonlinear
+** TODO General sections method
+** TODO Newton method for minimization
+
+* ODE
+** TODO Write tests for RK
+** TODO Trapezoid (Crank-Nicolson) method

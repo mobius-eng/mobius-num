@@ -1,0 +1,153 @@
+#+TITLE: =MOBIUS-NUM= package documentation
+#+AUTHOR: mobius-eng
+
+* Introduction
+=MOBIUS-NUM= package contains functions to deal with numerical
+computations directly in Common Lisp. The aim of the package is to
+have a platform independent numerical package for Common Lisp.
+
+The fact that the package does not rely on BLAS or LAPACK has two
+important implications:
+- First, it is much more portable and easier to install and use
+  (especially on Windows).
+- Secondly, it might not be suitable for very large problems (with
+  vector sizes of millions items, usual for multi-dimensional
+  problems).
+
+Therefore, the user must judge suitability of the package and weigh
+pros and cons carefully.
+
+* Package structure
+
+Package is split into the following parts (modules):
+- =BASE= provides basic helpers, constants and a generic aproach to
+  iterative methods.
+- =AD= part introduces two packages: =SYMBOLIC= that upgrades standard
+  CL operations to apply them to symbolic data and =AD= provides
+  algorithmic (automatic) differentiation.
+- =LINEAR= provides basic operations on vectors and BiCGStab linear
+  solver.
+- =NONLINEAR= provides globally convergent Newton's method to solve
+  nonlinear equations.
+- =ODE= provides Ordinary Differential Equations (ODE) solvers
+  (Runge-Kutta and trapezoid methods).
+
+* =BASE= module
+
+** Package =NUMERIC-CONSTANTS=
+- Constant =+INFINITY= :: is the representation of double-float
+     positive infinity in current implementation.
+- Constant =-INFINITY= :: is the representation of double-float
+     negative infinity in current implementation.
+- Constant =DEFAULT-PRECISION= :: is a constant used as a default
+     tolerance when comparing two double-float numbers for an
+     equality.
+
+Notice, Common Lisp does not have a portable way to represent
+not-a-number constant. Thus, it is not provided.
+
+** Package =NUMERIC-HELPERS= 
+This package contains multiple small utility functions
+- =(DEFUN ALMOST-ZERO-P (NUMBER &OPTIONAL (TOLERANCE DEFAULT-PRECISION)))= ::
+     compares given double-float number to zero with a given
+     tolerance. Returns either =T= or =NIL=.
+-  =(DEFUN QUAD-EXTREMUM (A B))= :: Returns the extremum point of the
+     quadratic function $f(x)=ax^{2}+b+c$: $x = -b/(2a)$.
+- =(DEFUN SOLVE-QUADRATIC (A B C))= :: solves quadratic equation
+     $ax^{2}+bx+c=0$ for double-float $a$, $b$ and $c$. Returns the list
+     of delayed (as simple functions of no argument) solutions. If the
+     equations does not have real solutions, returns =NIL=. The list
+     is odered: the smallest solution always appears first. Uses
+     stabilized formulas:
+     \[
+        x_{1}=\frac{-b-\sqrt{D}}{2a} (\text{if } b>0) = \frac{2c}{\sqrt{D}-b}
+            (\text{if } b < 0)
+     \]
+     \[
+        x_{2}=\frac{-b+\sqrt{D}}{2a} (\text{if } b<0) = \frac{-2c}{\sqrt{D}+b}
+            (\text{if } b>0)
+     \]
+- =(DEFUN CUBIC-EXTREMUM-1 (A B C))= and =(DEFUN CUBIC-EXTREMUM-2 (A B C))= :: return
+     the smallest and the largest extremum of the cubic function
+     $f(x)=ax^{3}+bx^{2}+cx+d$ respectively. If the extrema do not exist,
+     return =-INFINITY= and =+INFINITY= respectively.
+- =(DEFUN LINEAR-APPROXIMATION (X0 F0 X1 F1))= :: calculates coefficients for
+     the line passing through the points $(x_{0},f_{0})$ and $(x_{1},f_{1})$:
+     $a=(f_{1}-f_{0})/(x_{1}-x0)$ and $b=f_{0}$ for the line $g(x)=ax+b$. Returns
+     =(VALUES A B)=.
+- =(DEFUN QUAD-APPROXIMATION (X0 F0 DF0 X1 F1))= :: calculates coefficients for
+  quadratic approximation with the following properties:
+  + It passes through $(x_{0},f_{0})$ and $(x_{1},f_{1})$.
+  + It's tangent at $x_{0}$ is =DF0=: $D[f](x_{0})=df_{0}$.
+  Returns =(VALUES A B C)= for the approximation $f(x)\approx ax^{2}+bx+c$.
+- =(DEFUN CUBIC-APPROXIMATION (F0 DF0 X1 F1 X2 F2))= :: calculates
+     coefficients for cubic approximation with the following
+     properties:
+  + It passes through $(0,f_{0})$, $(x_{1},f_{1})$ and $(x_{2},f_{2})$.
+  + It's tangent at $0$ is =DF0=: $D[f](0)=df_{0}$.
+  Returns =(VALUES A B C D)= for the approximation $f(x)\approx
+     ax^{3}+bx^{2}+cx+d$.
+- =(DEFUN COMP (F &REST MORE))= :: returns the composition of functions =F=
+     and =MORE=. All functions must be functions of one argument.
+
+** Package =ITERATOR=
+This package is intended to be used qualified, hence a shorter
+(nick-)name. It provides the fundamental entity (iterator) for
+iterative methods. It also provides the foundation for controlling the
+computation.
+- =(DEFUN ITERATOR (STATUS VALUE))= :: constructs iterator object with
+     a given status and value. Status must be one of the keywords:
+     =:CONTINUE=, =:FAILED= or =:FINISHED=. Not intended to be used
+     directly.
+- =(DEFUN STATUS (ITERATOR))= :: returns iterator's status, one of the
+     keywords: =:CONTINUE=, =:FAILED= or =:FINISHED=.
+- =(DEFUN VALUE (ITERATOR))= :: returns iterator's value.
+- Specialized contructors =(DEFUN CONTINUE (VAL))=, =(DEFUN
+     FAILED(VAL))= and =(DEFUN FINISHED (VAL))= :: constuct iterator
+  with the respective status.
+- Predicate =(DEFUN ITERATOR-P (OBJ))= :: tests if a given object is
+     iterator.
+- Predicate =(DEFUN STATUS-P (OBJ STATUS))= :: tests if a given
+     iterator has a particular status. Not intended to be used
+     directly.
+- Specialized predicates =(DEFUN CONTINUE-P (OBJ))=, =(DEFUN FAILED-P
+  (OBJ))= and =(DEFUN FINISHED-P (OBJ))= :: test if a given iterator
+  has the respective status.
+- =(DEFUN REPLACE-VALUE (ITERATOR NEW-VALUE))= :: destructively
+     replaces iterator's value with new value. Returns updated
+     iterator.
+- =(DEFUN UPDATE-VALUE (ITERATOR UPDATE-FUNCTION &REST ARGS))= ::
+     destructively updates iterator's value by replacing with the
+     result of =(APPLY #'UPDATE-FUNCTION VALUE ARGS)=.
+- =(DEFUN CHANGE-STATUS (ITERATOR NEW-STATUS &OPTIONAL
+  UPDATE-VALUE-FUNCTION))= :: destructively updates iterator's
+  status. If the last argument is provided, it updates iterator's
+  value as well (similarly to =UPDATE-VALUE= with =ARGS= being
+  =NIL=). Returns updated iterator.
+- Specialized functions =->CONTINUE=, =->FAILED= and =->FINISHED= ::
+     destructuvely update iterator's status (and optionally its
+     value) returning updated iterator.
+- =(DEFUN BIND (ITERATOR &REST FUNCTIONS))= :: (monad) passes
+     iterator's value through functions iff its status is
+     =:CONTINUE=. Each function must accept iterator's value and
+     return a new iterator.
+- =(DEFUN FMAP (ITERATOR &REST FUNCTIONS))= :: (functor map) passes
+     iterator's value through functions iff its status is
+     =:CONTINUE=. Each function must return the input suitable for the
+     next function. Returns the iterator with updated value. Notice,
+     functions cannot influence the status.
+
+** Package =NUMERIC-CONTROL=
+This package provides means of combination for iterators to control
+the computation. The functionality is based on two generic methods:
+- =(DEFGENERIC INIT-CONTROL (CONTROL INIT-VALUE))= :: initializes a
+     particular control with initial value. This is usually necessary
+     for controls that keep a status. The return value is ignored.
+- =(DEFGENERIC APPLY-CONTROL (CONTROL ITERATOR))= :: applies a
+     particular control to iterator. Controls are not required to
+     check iterator's status. But they can destructively change change
+     the iterator. Must return updated iterator.
+The default implementations are provided: =INIT-CONTROL= does nothing
+and returns =NIL= and =APPLY-CONTROL= passes the iterator unchaged.
+
+
