@@ -13,6 +13,8 @@
            #:vector-almost-zero-p
            #:add-with-multipliers!
            #:linear-combination!
+           #:assign-linear-combination!
+           #:vector-average!
            #:scale-vector!
            #:negate-vector!
            #:matrix-mul #:matrix-mul-gen

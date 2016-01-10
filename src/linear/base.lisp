@@ -238,6 +238,46 @@ MULT-ARG is a squence of CONS-cells (CONS a  p )
                       (incf result (* c (aref w i))))))))))))
 
 
+(defun assign-linear-combination! (result &rest coeff-vectors)
+  "Computes linear combination of COEFF-VECTORS and assigns it to RESULT:
+
+              0             N
+    v  <- c  u  + ... + c  u
+     i     0  i          N  i
+
+where c  are coefficients and
+       j
+ N
+u  are vectors from COEFF-VECTORS
+COEFF-VECTORS format: (CONS C0 U0) (CONS C1 U1) ..."
+  (declare (optimize (speed 3) (debug 1) (safety 1))
+           (type (simple-array double-float *) result))
+  (match coeff-vectors
+    (nil nil)
+    ((list (cons coeff vec))
+     (declare (type double-float coeff)
+              (type (simple-array double-float *) vec))
+     (check-vector-lengths result vec)
+     (dotimes (i (length vec))
+       (setf (aref result i) (* coeff (aref vec i)))))
+    (otherwise
+     (apply #'check-vector-lengths result (mapcar #'cdr coeff-vectors))
+     (dotimes (i (length result))
+       (setf (aref result i)
+             (let ((w 0d0))
+               (declare (type double-float w))
+               (dolist (entry coeff-vectors w)
+                 (destructuring-bind (c . v) entry
+                   (declare (type double-float c) (type (simple-array double-float *) v))
+                   (incf w (* c (aref v i)))))))))))
+
+(defun vector-average! (u v &optional (result u))
+  "Compute elementwise average for vectors U and V.
+If RESULT is provided, assign the result of the function to its items.
+Otherwise use U as the result buffer."
+  (assign-linear-combination! result (cons 0.5d0 u) (cons 0.5d0 v)))
+
+
 (defun scale-vector! (factor vector &optional (result vector))
   "Multiply VECTOR by FACTOR. RESULT must be the vector of the same length"
   (declare (optimize (speed 3) (debug 1) (safety 1))

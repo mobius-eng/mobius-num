@@ -110,9 +110,42 @@ x      - x    1    n  n         n + 1   n + 1
             (format t "~&Solved (time = ~A, step = ~A): ~A~%" solved-p next-time time-step)
             solution))))))
 
-(defun estimate-error (old-value new-value ode-error)
+(defun estimate-error (trap ode-function state time-step ode-error)
   "Returns relative error estimate"
-  )
+  ;; Set new rate
+  (with-accessors ((curtime ode-state-time)
+                   (curvalue ode-state-value)
+                   (currate ode-state-rate))
+      state
+    (with-accessors ((nextvalue ode-trap-next-value)
+                     (nextrate ode-trap-next-rate)
+                     (tmpvalue ode-trap-tmp-value)
+                     (tmprate ode-trap-tmp-rate))
+        trap)
+    (let ((half-step (* 0.5d0 time-step)))
+      ;; Set new rate
+      (copy-vector-to! (funcall ode-function (+ curtime time-step) nextvalue) nextrate)
+      ;; Predictor for midpoint u(n+1/2)
+      (vector-average! currate nextrate tmprate)
+      (trapezoid-step curvalue half-step currate tmprate tmpvalue)
+      ;; Updated midpoint rate
+      (copy-vector-to! (funcall ode-function (+ curtime half-step) tmpvalue)
+                       tmprate)
+      ;; Corrected midpoint u(n+1/2)
+      (trapezoid-step curvalue half-step currate tmprate tmpvalue)
+      ;; Corrected midpoint rate (does it do much?)
+      (copy-vector-to! (funcall ode-function (+ curtime half-step) tmpvalue)
+                       tmprate)
+      ;; Estimate of u(n+1) done in two steps
+      (trapezoid-step tmpvalue half-step tmprate nextrate tmpvalue)
+      )))
+
+
+(defun trapezoid-step (init-value step init-rate final-rate final-value)
+  (assign-linear-combination! final-value
+                              (cons 1d0 init-value)
+                              (cons (* 0.5d0 step) init-rate)
+                              (cons (* 0.5d0 step) final-rate)))
 
 (defun recommend-step (time-step error-estimate)
   "Calculates recommended step based on error estimate")
