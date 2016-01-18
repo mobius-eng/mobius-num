@@ -99,7 +99,7 @@ Both vectors must be (SIMPLE-ARRAY DOUBLE-FLOAT *)"
            (optimize (speed 3) (debug 1) (safety 1)))
   (let ((result 0d0))
     (declare (type double-float result))
-    (dotimes (i (length v) (sqrt result))
+    (dotimes (i (length v) (the double-float (sqrt result)))
       (incf result (* (aref v i) (aref v i))))))
 
 (defun square-vector (v)
@@ -110,7 +110,7 @@ Both vectors must be (SIMPLE-ARRAY DOUBLE-FLOAT *)"
     i
 
 "
-  (declare (type (simple-array * *) v)
+  (declare (type (simple-array double-float *) v)
            (optimize (speed 3) (debug 1) (safety 1)))
   (loop for x of-type double-float across v
      summing (* x x) of-type double-float))
@@ -129,14 +129,17 @@ Does not allocate any extra space"
      (sqrt (loop for i below (length vector)
               sum (expt (the double-float
                              (- (aref vector i) (aref vector2 i)))
-                        2))))
+                        2)
+              of-type double-float)))
     (otherwise
      (sqrt
       (loop for i below (length vector)
-         sum (expt (reduce #'- other-vectors
-                           :initial-value (aref vector i)
-                           :key (lambda (v) (aref v i)))
-                   2))))))
+         sum (coerce (expt (reduce #'- other-vectors
+                                   :initial-value (aref vector i)
+                                   :key (lambda (v) (aref v i)))
+                           2)
+                     'double-float)
+         of-type double-float)))))
 
 
 

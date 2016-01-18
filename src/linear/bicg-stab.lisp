@@ -48,7 +48,8 @@
   "Calculate the residual r = b - A(x)"
   (declare (optimize (speed 3) (safety 1) (debug 0)))
   (declare (type (simple-array double-float *) r)
-           (type (simple-array * *) x b))
+           (type (simple-array * *) x b)
+           (type function A))
   (funcall A x r)
   (dotimes (i (length r))
     (setf (aref r i) (- (aref b i) (aref r i)))))
@@ -114,6 +115,7 @@ from current approximation. I.e. r0 is set to current residual."
     i      i
 
 "
+  (declare (type function A))
   (alter-value
    (lambda (x)
      (declare (optimize (speed 3) (safety 1) (debug 0)))
@@ -122,10 +124,11 @@ from current approximation. I.e. r0 is set to current residual."
        (let ((beta (* (/ new-rho (the double-float (bicg-rho v)))
                       (/ (the double-float (bicg-alpha v))
                          (the double-float (bicg-omega v))))))
+         (declare (type double-float beta))
          (linear-combination!
           beta (bicg-p v)
           (cons 1d0 (bicg-r v))
-          (cons (- (* beta (bicg-omega v))) (bicg-v v)))
+          (cons (- (* beta (the double-float (bicg-omega v)))) (bicg-v v)))
          (funcall A (bicg-p v) (bicg-v v))
          (setf (bicg-rho v) new-rho)
          v)))))

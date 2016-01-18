@@ -61,7 +61,8 @@
 (defun update-value (iterator update-function &rest args)
   "Destructively update ITERATOR's value"
   (declare (optimize (speed 3) (debug 0) (safety 1))
-           (type iterator iterator))
+           (type iterator iterator)
+           (type function update-function))
   (setf (slot-value iterator 'value)
         (apply update-function (slot-value iterator 'value) args))
   iterator)
@@ -85,14 +86,6 @@
 (defun ->finished (iterator &optional (update-value-function #'identity))
   "Change status of the ITERATOR to :FINISHED"
   (change-status iterator :finished update-value-function))
-
-(defun bind (iterator function)
-  "Propogate ITERATOR's value through the FUNCTION
-if its status is :CONTINUE. Otherwise return ITERATOR
-FUNCTION must return ITERATOR"
-  (if (continue-p iterator)
-      (funcall function (value iterator))
-      iterator))
 
 (defun bind (iterator &rest functions)
   "Propogates ITERATOR's value through FUNCTIONS iff its status is
