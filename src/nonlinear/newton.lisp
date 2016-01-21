@@ -37,14 +37,21 @@ where F is (F X)")
      (format out "~A g(x) = ~F" newton-value-approximation newton-value-g0))))
 
 ;; ** Control
-(defvar *newton-tolerance* 1d-8)
+(defvar *newton-tolerance* 1d-8
+  "Default value for convergence tolerance. The convergence checks the value of the residual
+and the value of the step to take. For convergence, both must fall below tolerance")
+(defvar *newton-residual-abs-minimum* 1d-12
+  "If residual falls below this value, the solution is considered converged even though
+the method still suggests a large step to take")
 (defvar *newton-max-iterations* 20)
 
 (defun newton-finished-p (tolerance)
   (lambda (val)
     (with-accessors ((p newton-value-dir) (g0 newton-value-g0)) val
-      (and (vector-almost-zero-p p tolerance)
-           (almost-zero-p (sqrt (* 2.0d0 g0)) tolerance)))))
+      (let ((residual (sqrt (* 2d0 g0))))
+        (or (almost-zero-p residual *newton-residual-abs-minimum*)
+            (and (vector-almost-zero-p p tolerance)
+                 (almost-zero-p residual tolerance)))))))
 
 (defun make-newton-control (tolerance max-iterations other-controls)
   (apply #'combine-controls
@@ -89,10 +96,7 @@ where F is (F X)")
     :tmp-x (make-vector size 'double-float)
     :tmp-f (make-vector size 'double-float)
     :control (make-newton-control tolerance max-iterations other-controls)
-    :linsearch (make-linsearch (log-computation
-                                (lambda (tag val)
-                                  (declare (ignore tag))
-                                  (format t "~&Linsearch: ~A~%" val))))))
+    :linsearch (make-linsearch)))
 
 
 ;; ** Conditions

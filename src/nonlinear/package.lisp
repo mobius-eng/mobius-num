@@ -40,6 +40,7 @@
         #:numeric-linsearch
         #:numeric-nonlinear)
   (:export #:newton-value
+           #:newton-value-approximation
            #:newton-solution
            #:newton-residual
            #:make-newton-value
