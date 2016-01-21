@@ -23,5 +23,6 @@
 ** TODO Newton method for minimization
 
 * ODE
-** TODO Write tests for RK
+** DONE Write tests for RK
+   CLOSED: [2016-01-21 Thu 16:03]
 ** TODO Trapezoid (Crank-Nicolson) method
