@@ -135,8 +135,65 @@ starting from x = 2: should take the full step"
 
 ;; (run! 'nonlinear-cubic-root)
 
-(run! 'nonlinear-suite)
+(test nonlinear-chemeng-equilibrium
+  "Solve the following equations
 
+    K  P F  F  - F  F  = 0
+     1    A  B    C  t
+
+    K  P F  F  - F  F  = 0
+     2    A  C    D  t
+
+    K  P F  F  - F  F  = 0
+     3    C  B    E  t
+
+    F   = F  + F  + 2 F  + F
+     A0    A    C      D    E
+
+    F   = F  + F  + F  + 2 F
+     B0    B    C    D      E
+"
+  (let ((k (vec 'double-float 1d0 2d0 1d0))
+        (total-pressure 10d0)
+        (fa0 1d0)
+        (fb0 1d0)
+        (init-guess (vec 'double-float 0.5d0 0.5d0 0.1d0 0.1d0 0.1d0))
+        (exact-solution (vec 'double-float
+                             0.0859992135185769d0 0.13899235860746198d0
+                             0.13853376960391228d0 0.2761533873221411d0
+                             0.22316024223323777d0))
+        (method (make-newton 5
+                             :other-controls (list (log-computation
+                                                    (lambda (tag val)
+                                                      (declare (ignore tag))
+                                                      (format t "~&LOG:~Tr = ~A~Tsqrt(2g0) = ~A~Tdir = ~A~%"
+                                                              (nonlinear-value-residual
+                                                               (newton-value-approximation val))
+                                                              (sqrt (* 2d0 (numeric-newton::newton-value-g0 val)))
+                                                              (l2-norm (numeric-newton::newton-value-dir val)))))))))
+    (flet ((equilibrium (F y)
+             (with-vector-items ((fa 0) (fb 1) (fc 2) (fd 3) (fe 4)) F
+               (let ((f-total (+ fa fb fc fd fe)))
+                 (setf (aref y 0)
+                       (- (* (aref k 0) total-pressure fa fb) (* fc f-total)))
+                 (setf (aref y 1)
+                       (- (* (aref k 1) total-pressure fa fc) (* fd f-total)))
+                 (setf (aref y 2)
+                       (- (* (aref k 2) total-pressure fc fb) (* fe f-total)))
+                 (setf (aref y 3)
+                       (- fa0 fa fc (* 2d0 fd) fe))
+                 (setf (aref y 4)
+                       (- fb0 fb fc fd (* 2d0 fe)))))))
+      (multiple-value-bind (solution successful-p final-residual)
+          (fsolve method #'equilibrium init-guess (jacobian*vector #'equilibrium (make-vector 5) (make-vector 5)))
+        (is-true successful-p)
+        (is (almost-zero-p final-residual *newton-tolerance*))
+        (add-with-multipliers! exact-solution (cons -1d0 solution))
+        (is (vector-almost-zero-p exact-solution *newton-tolerance*))))))
+
+;; (run! 'nonlinear-chemeng-equilibrium)
+
+(run! 'nonlinear-suite)
 
 ;; (let* ((f (let ((f-out (make-vector 3)))
 ;;             (lambda (v)
