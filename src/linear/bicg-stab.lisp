@@ -177,7 +177,7 @@ and
   "If l2norm of s is small - finish"
   (finished-value
    (lambda (bicg-value)
-     (format t "~&S is small check~%")
+     ;; (format t "~&S is small check~%")
      (vector-almost-zero-p (bicg-s bicg-value) tolerance))
    ;; #f(vector-almost-zero-p (bicg-s %) tolerance)
    (lambda (value)
@@ -220,7 +220,7 @@ and
   "Final finish check: finish is residual is small"
   (finished-value
    (lambda (value)
-     (format t "~&Residual is small check~%")
+     ;; (format t "~&Residual is small check~%")
      (vector-almost-zero-p (bicg-r value) tolerance))))
 
 ;; *** Computation parameters
@@ -235,7 +235,7 @@ and
   B is a right hand side vector
   X0 is initial approximation of the solution
   OTHER-CONTROLS extra controls (e.g. log-value) for computation"
-  (format t "~&In BiCGStab~%")
+  ;; (format t "~&In BiCGStab~%")
   (check-vector-lengths b x0)
   (assert (= (length b) (bicg-stab-vector-length value))
           ()
@@ -260,7 +260,7 @@ and
                 (finished-value
                  (lambda (value)
                    (declare (ignore value))
-                   (format t "~&b is zero check~%")
+                   ;; (format t "~&b is zero check~%")
                    (vector-almost-zero-p b *bicg-stab-tolerance*))
                  (lambda (value)
                    (set-vector-to-zero! (bicg-x value))
